@@ -4,7 +4,7 @@
 
 #define MyAppName "Tilbi"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "Tilbi"
+#define MyAppPublisher "Globinner"
 #define MyAppURL "https://www.globinner.com"
 #define MyAppExeName "Tilbi.exe"
 
