@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tilbi Editor</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #1e3a8a;
+      color: #ffffff;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: #3b0764;
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(139, 92, 246, 0.5);
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+    
+    .window-controls {
+      display: flex;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .window-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: #e0e7ff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      border-radius: 4px;
+    }
+    
+    .window-btn:hover {
+      background: rgba(139, 92, 246, 0.3);
+      color: #ffffff;
+    }
+    
+    .window-btn.close:hover {
+      background: #dc2626;
+      color: white;
+    }
+
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .toolbar {
+      background: #6d28d9;
+      padding: 8px;
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid rgba(139, 92, 246, 0.5);
+    }
+
+    .tool-btn {
+      background: #5b21b6;
+      border: none;
+      color: #ffffff;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      transition: background 0.2s;
+    }
+
+    .tool-btn:hover {
+      background: #6d28d9;
+    }
+
+    .tool-btn.active {
+      background: #1e40af;
+    }
+
+    .tool-btn i {
+      font-size: 18px;
+    }
+
+    .color-picker-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px;
+    }
+
+    .color-picker-label {
+      font-size: 12px;
+      color: #e0e7ff;
+    }
+
+    .color-input {
+      width: 40px;
+      height: 30px;
+      border: 1px solid rgba(139, 92, 246, 0.5);
+      border-radius: 4px;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .thickness-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 8px;
+    }
+
+    .thickness-label {
+      font-size: 12px;
+      color: #e0e7ff;
+    }
+
+    .thickness-slider {
+      width: 100px;
+    }
+
+
+    .toolbar {
+      background: #6d28d9;
+      padding: 8px;
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid rgba(139, 92, 246, 0.5);
+      flex-shrink: 0;
+    }
+
+    .main-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      min-height: 0;
+    }
+
+    .canvas-container {
+      flex: 1;
+      overflow: auto;
+      background: #1e3a8a;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    #canvas {
+      background: white;
+      cursor: crosshair;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      display: block;
+      margin: auto;
+    }
+    
+    /* Custom cursors for different tools */
+    #canvas.cursor-rect {
+      cursor: crosshair;
+    }
+    
+    #canvas.cursor-circle {
+      cursor: crosshair;
+    }
+    
+    #canvas.cursor-arrow {
+      cursor: crosshair;
+    }
+    
+    #canvas.cursor-pen {
+      cursor: crosshair;
+    }
+    
+    #canvas.cursor-line {
+      cursor: crosshair;
+    }
+    
+    #canvas.cursor-text {
+      cursor: text;
+    }
+
+    .actions {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      background: #1e40af;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-btn:hover {
+      background: #1e3a8a;
+    }
+
+    .action-btn.cancel {
+      background: #5b21b6;
+    }
+
+    .action-btn.cancel:hover {
+      background: #4c1d95;
+    }
+
+    .text-input-container {
+      position: fixed;
+      display: none;
+      background: white;
+      border: 2px solid #4a86e8;
+      border-radius: 4px;
+      padding: 2px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+    }
+
+    .text-input {
+      background: white;
+      border: none;
+      padding: 8px 12px;
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--text-color, #000);
+      outline: none;
+      min-width: 200px;
+    }
+    
+    .text-input-container .color-preview {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 2px solid #333;
+      border-radius: 4px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title" style="display:flex;align-items:center;gap:8px;">
+      <img src="icons/32x32.png" alt="Tilbi" style="width:16px;height:16px;object-fit:contain;"/>
+      Tilbi Editor
+    </div>
+    <div class="window-controls">
+      <button class="window-btn close" id="closeBtn">×</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool-btn active" id="rectBtn" title="Rectangle">
+      <i class="material-icons">crop_square</i>
+      Rect
+    </button>
+    <button class="tool-btn" id="circleBtn" title="Circle">
+      <i class="material-icons">radio_button_unchecked</i>
+      Circle
+    </button>
+    <button class="tool-btn" id="arrowBtn" title="Arrow">
+      <i class="material-icons">arrow_right_alt</i>
+      Arrow
+    </button>
+    <button class="tool-btn" id="textBtn" title="Text">
+      <i class="material-icons">text_fields</i>
+      Text
+    </button>
+    
+    <button class="tool-btn" id="lineBtn" title="Line">
+      <i class="material-icons">remove</i>
+      Line
+    </button>
+    
+    <div class="color-picker-container">
+      <span class="color-picker-label">Color:</span>
+      <input type="color" id="colorPicker" class="color-input" value="#ff0000">
+    </div>
+
+    <div class="thickness-control">
+      <span class="thickness-label">Size:</span>
+      <input type="range" id="thicknessSlider" class="thickness-slider" min="1" max="20" value="3">
+      <span id="thicknessValue">3</span>
+    </div>
+
+    <div class="thickness-control" id="textSizeControl" style="display: none;">
+      <span class="thickness-label">Text Size:</span>
+      <input type="range" id="textSizeSlider" class="thickness-slider" min="12" max="72" value="24">
+      <span id="textSizeValue">24</span>
+    </div>
+
+    <button class="tool-btn" id="clearBtn" title="Clear All">
+      <i class="material-icons">clear_all</i>
+    </button>
+  </div>
+
+  <div class="main-content">
+    <div class="canvas-container">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn cancel" id="cancelBtn">
+      <i class="material-icons">close</i>
+      Cancel
+    </button>
+    <button class="action-btn" id="saveBtn">
+      <i class="material-icons">save</i>
+      Save
+    </button>
+  </div>
+
+  <div id="textInputContainer" class="text-input-container">
+    <input type="text" id="textInput" class="text-input" placeholder="Type text..." style="color: var(--text-color, #000);">
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    const fs = require('fs');
+    const path = require('path');
+    document.title = 'Tilbi Editor';
+    const h = document.querySelector('.header-title');
+    if (h) h.innerHTML = '<img src="icons/32x32.png" alt="Tilbi" style="width:16px;height:16px;object-fit:contain;"/>\n      Tilbi Editor';
+
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
+    let originalImage = new Image();
+    let currentTool = 'rect';
+    let drawing = false;
+    let startX, startY;
+    let currentColor = '#ff0000';
+    let thickness = 3;
+    let shapes = [];
+    let currentText = null;
+    let textStartX, textStartY;
+    let selectedShapeIndex = -1;
+    let isMoving = false;
+    let moveStartX, moveStartY;
+    let textSize = 24;
+
+    // Tools
+    document.getElementById('rectBtn').addEventListener('click', () => setTool('rect'));
+    document.getElementById('circleBtn').addEventListener('click', () => setTool('circle'));
+    document.getElementById('arrowBtn').addEventListener('click', () => setTool('arrow'));
+    document.getElementById('textBtn').addEventListener('click', () => setTool('text'));
+    
+    document.getElementById('lineBtn').addEventListener('click', () => setTool('line'));
+    
+    document.getElementById('colorPicker').addEventListener('change', (e) => {
+      currentColor = e.target.value;
+    });
+
+    document.getElementById('thicknessSlider').addEventListener('input', (e) => {
+      thickness = parseInt(e.target.value);
+      document.getElementById('thicknessValue').textContent = thickness;
+    });
+    
+    document.getElementById('textSizeSlider').addEventListener('input', (e) => {
+      textSize = parseInt(e.target.value);
+      document.getElementById('textSizeValue').textContent = textSize;
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (confirm('Clear all annotations?')) {
+        shapes = [];
+        redraw();
+      }
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      // Close editor and show main window
+      ipcRenderer.send('close-editor-and-show-main');
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', saveImage);
+    
+    // Window controls (minimize removed)
+    
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      window.close();
+    });
+
+    // Helper function to get canvas coordinates accounting for scaling
+    function getCanvasCoordinates(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function updateCursor() {
+      // Remove all cursor classes
+      canvas.classList.remove('cursor-rect', 'cursor-circle', 'cursor-arrow', 'cursor-pen', 'cursor-line', 'cursor-text');
+      
+      // Add appropriate cursor class
+      if (currentTool === 'text') {
+        canvas.classList.add('cursor-text');
+        canvas.style.cursor = 'text';
+      } else {
+        canvas.style.cursor = 'crosshair';
+        canvas.classList.add('cursor-' + currentTool);
+      }
+    }
+    
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Show/hide text size control
+      const textSizeControl = document.getElementById('textSizeControl');
+      if (tool === 'text') {
+        textSizeControl.style.display = 'flex';
+      } else {
+        textSizeControl.style.display = 'none';
+      }
+      
+      updateCursor();
+    }
+    
+    // Check if point is inside a shape
+    function isPointInShape(x, y, shape) {
+      if (shape.type === 'rect') {
+        const minX = Math.min(shape.startX, shape.endX);
+        const maxX = Math.max(shape.startX, shape.endX);
+        const minY = Math.min(shape.startY, shape.endY);
+        const maxY = Math.max(shape.startY, shape.endY);
+        return x >= minX && x <= maxX && y >= minY && y <= maxY;
+      } else if (shape.type === 'circle') {
+        const centerX = shape.startX;
+        const centerY = shape.startY;
+        const radius = Math.sqrt(Math.pow(shape.endX - shape.startX, 2) + Math.pow(shape.endY - shape.startY, 2));
+        const dist = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+        return dist <= radius;
+      } else if (shape.type === 'arrow' || shape.type === 'line') {
+        // For lines/arrows, check if point is near the line (within 5 pixels)
+        const dx = shape.endX - shape.startX;
+        const dy = shape.endY - shape.startY;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length === 0) return false;
+        
+        const t = Math.max(0, Math.min(1, ((x - shape.startX) * dx + (y - shape.startY) * dy) / (length * length)));
+        const projX = shape.startX + t * dx;
+        const projY = shape.startY + t * dy;
+        const dist = Math.sqrt(Math.pow(x - projX, 2) + Math.pow(y - projY, 2));
+        return dist <= 10;
+      } else if (shape.type === 'text') {
+        // Text is at a point, check if clicked near it
+        const dist = Math.sqrt(Math.pow(x - shape.x, 2) + Math.pow(y - shape.y, 2));
+        return dist <= 50;
+      }
+      return false;
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const coords = getCanvasCoordinates(e);
+      startX = coords.x;
+      startY = coords.y;
+
+      // Always check if clicking on a shape first (for direct moving)
+      selectedShapeIndex = -1;
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        if (isPointInShape(coords.x, coords.y, shapes[i])) {
+          selectedShapeIndex = i;
+          isMoving = true;
+          drawing = false;
+          moveStartX = startX;
+          moveStartY = startY;
+          canvas.style.cursor = 'move';
+          redraw();
+          return;
+        }
+      }
+      
+      // Not clicking on a shape, deselect and use current tool
+      selectedShapeIndex = -1;
+      redraw();
+      
+      // Handle text tool separately
+      if (currentTool === 'text') {
+        // Don't set drawing=true for text tool
+        drawing = false;
+        textStartX = startX;
+        textStartY = startY;
+        
+        // Get absolute position on screen
+        const canvasRect = canvas.getBoundingClientRect();
+        const displayX = coords.x * (canvasRect.width / canvas.width);
+        const displayY = coords.y * (canvasRect.height / canvas.height);
+        
+        showTextInput(displayX, displayY);
+        return;
+      }
+      
+      // Start drawing with current tool
+      drawing = true;
+      if (currentTool === 'pen') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+      }
+    });
+
+    let currentMouseX, currentMouseY;
+
+    canvas.addEventListener('mousemove', (e) => {
+      const coords = getCanvasCoordinates(e);
+      currentMouseX = coords.x;
+      currentMouseY = coords.y;
+
+      // Show move cursor when hovering over a shape (not while drawing)
+      if (!drawing && !isMoving) {
+        let hoveringShape = false;
+        for (let i = shapes.length - 1; i >= 0; i--) {
+          if (isPointInShape(coords.x, coords.y, shapes[i])) {
+            canvas.style.cursor = 'move';
+            hoveringShape = true;
+            break;
+          }
+        }
+        if (!hoveringShape) {
+          updateCursor();
+        }
+      }
+
+      // Handle moving selected shape
+      if (isMoving && selectedShapeIndex >= 0) {
+        // Move the selected shape
+        const shape = shapes[selectedShapeIndex];
+        const deltaX = currentMouseX - moveStartX;
+        const deltaY = currentMouseY - moveStartY;
+        
+        shape.startX += deltaX;
+        shape.startY += deltaY;
+        shape.endX += deltaX;
+        shape.endY += deltaY;
+        if (shape.x !== undefined && shape.y !== undefined) {
+          shape.x += deltaX;
+          shape.y += deltaY;
+        }
+        
+        moveStartX = currentMouseX;
+        moveStartY = currentMouseY;
+        redraw();
+        return;
+      }
+      
+      // Handle drawing operations
+      if (!drawing) return;
+      
+      if (currentTool === 'pen') {
+        ctx.lineTo(currentMouseX, currentMouseY);
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = thickness;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      } else {
+        // Live preview for shapes being drawn
+        redrawWithPreview(startX, startY, currentMouseX, currentMouseY);
+      }
+    });
+    
+    // Helper function for live preview
+    function redrawWithPreview(startX, startY, endX, endY) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+      
+      // Draw all existing shapes
+      shapes.forEach((shape, index) => {
+        ctx.strokeStyle = shape.color;
+        ctx.fillStyle = shape.color;
+        ctx.lineWidth = shape.thickness;
+        drawShape(ctx, shape, index);
+      });
+      
+      // Draw preview of current shape
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.lineWidth = thickness;
+      
+      if (currentTool === 'rect') {
+        const minX = Math.min(startX, endX);
+        const minY = Math.min(startY, endY);
+        const maxX = Math.max(startX, endX);
+        const maxY = Math.max(startY, endY);
+        
+        // Draw rounded rectangle preview
+        const radius = Math.min(10, Math.abs(maxX - minX) / 4, Math.abs(maxY - minY) / 4);
+        ctx.beginPath();
+        ctx.moveTo(minX + radius, minY);
+        ctx.lineTo(maxX - radius, minY);
+        ctx.quadraticCurveTo(maxX, minY, maxX, minY + radius);
+        ctx.lineTo(maxX, maxY - radius);
+        ctx.quadraticCurveTo(maxX, maxY, maxX - radius, maxY);
+        ctx.lineTo(minX + radius, maxY);
+        ctx.quadraticCurveTo(minX, maxY, minX, maxY - radius);
+        ctx.lineTo(minX, minY + radius);
+        ctx.quadraticCurveTo(minX, minY, minX + radius, minY);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (currentTool === 'circle') {
+        const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+        ctx.beginPath();
+        ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (currentTool === 'arrow') {
+        drawArrow(ctx, startX, startY, endX, endY, thickness);
+      } else if (currentTool === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      }
+    }
+    
+    // Helper function to draw a shape
+    function drawShape(ctx, shape, index) {
+      if (shape.type === 'rect') {
+        const minX = Math.min(shape.startX, shape.endX);
+        const minY = Math.min(shape.startY, shape.endY);
+        const maxX = Math.max(shape.startX, shape.endX);
+        const maxY = Math.max(shape.startY, shape.endY);
+        
+        // Rounded rectangle
+        const radius = Math.min(10, Math.abs(maxX - minX) / 4, Math.abs(maxY - minY) / 4);
+        ctx.beginPath();
+        ctx.moveTo(minX + radius, minY);
+        ctx.lineTo(maxX - radius, minY);
+        ctx.quadraticCurveTo(maxX, minY, maxX, minY + radius);
+        ctx.lineTo(maxX, maxY - radius);
+        ctx.quadraticCurveTo(maxX, maxY, maxX - radius, maxY);
+        ctx.lineTo(minX + radius, maxY);
+        ctx.quadraticCurveTo(minX, maxY, minX, maxY - radius);
+        ctx.lineTo(minX, minY + radius);
+        ctx.quadraticCurveTo(minX, minY, minX + radius, minY);
+        ctx.closePath();
+        ctx.stroke();
+        
+        if (index === selectedShapeIndex) {
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = '#4a86e8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(minX - 5 + radius, minY - 5);
+          ctx.lineTo(maxX + 5 - radius, minY - 5);
+          ctx.quadraticCurveTo(maxX + 5, minY - 5, maxX + 5, minY - 5 + radius);
+          ctx.lineTo(maxX + 5, maxY + 5 - radius);
+          ctx.quadraticCurveTo(maxX + 5, maxY + 5, maxX + 5 - radius, maxY + 5);
+          ctx.lineTo(minX - 5 + radius, maxY + 5);
+          ctx.quadraticCurveTo(minX - 5, maxY + 5, minX - 5, maxY + 5 - radius);
+          ctx.lineTo(minX - 5, minY + 5 + radius);
+          ctx.quadraticCurveTo(minX - 5, minY - 5, minX - 5 + radius, minY - 5);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      } else if (shape.type === 'circle') {
+        const radius = Math.sqrt(Math.pow(shape.endX - shape.startX, 2) + Math.pow(shape.endY - shape.startY, 2));
+        ctx.beginPath();
+        ctx.arc(shape.startX, shape.startY, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        if (index === selectedShapeIndex) {
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = '#4a86e8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(shape.startX, shape.startY, radius + 5, 0, 2 * Math.PI);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      } else if (shape.type === 'arrow') {
+        drawArrow(ctx, shape.startX, shape.startY, shape.endX, shape.endY, shape.thickness);
+        
+        if (index === selectedShapeIndex) {
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = '#4a86e8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(shape.startX, shape.startY);
+          ctx.lineTo(shape.endX, shape.endY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      } else if (shape.type === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(shape.startX, shape.startY);
+        ctx.lineTo(shape.endX, shape.endY);
+        ctx.stroke();
+        
+        if (index === selectedShapeIndex) {
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = '#4a86e8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(shape.startX, shape.startY);
+          ctx.lineTo(shape.endX, shape.endY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      } else if (shape.type === 'text') {
+        const fontWeight = shape.bold ? 'bold' : 'normal';
+        ctx.font = `${fontWeight} ${shape.size}px Arial`;
+        ctx.fillStyle = shape.color;
+        ctx.fillText(shape.text, shape.x, shape.y);
+        
+        if (index === selectedShapeIndex) {
+          const textWidth = ctx.measureText(shape.text).width;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = '#4a86e8';
+          ctx.strokeRect(shape.x - 5, shape.y - shape.size - 5, textWidth + 10, shape.size + 10);
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    canvas.addEventListener('mouseup', (e) => {
+      if (isMoving) {
+        isMoving = false;
+        // Restore cursor to current tool
+        updateCursor();
+        return;
+      }
+      
+      if (!drawing) return;
+      
+      drawing = false;
+      const coords = getCanvasCoordinates(e);
+      const endX = coords.x;
+      const endY = coords.y;
+
+      if (currentTool !== 'pen' && currentTool !== 'text') {
+        const shape = {
+          type: currentTool,
+          startX,
+          startY,
+          endX,
+          endY,
+          color: currentColor,
+          thickness
+        };
+        shapes.push(shape);
+        redraw();
+      }
+    });
+
+
+    function drawArrow(ctx, fromX, fromY, toX, toY, lineWidth = 2) {
+      // Draw the main line with rounded caps
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.lineWidth = lineWidth;
+      ctx.stroke();
+      
+      // Calculate arrow direction and length
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const angle = Math.atan2(dy, dx);
+      const length = Math.sqrt(dx * dx + dy * dy);
+      
+      // Arrow head size based on line width - make it more prominent
+      const headlen = Math.max(lineWidth * 4, 20);
+      const headWidth = Math.max(lineWidth * 2, 12);
+      
+      // Only draw arrowhead if the line is long enough
+      if (length > headlen / 2) {
+        // Draw a sleek arrowhead
+        const arrowBaseX = toX - headlen * Math.cos(angle);
+        const arrowBaseY = toY - headlen * Math.sin(angle);
+        
+        // Create arrowhead path
+        ctx.beginPath();
+        ctx.moveTo(toX, toY);
+        
+        // Left side of arrow
+        const leftX = arrowBaseX - headWidth * Math.cos(angle - Math.PI / 2);
+        const leftY = arrowBaseY - headWidth * Math.sin(angle - Math.PI / 2);
+        ctx.lineTo(leftX, leftY);
+        
+        // Back to arrow base
+        ctx.lineTo(arrowBaseX, arrowBaseY);
+        
+        // Right side of arrow
+        const rightX = arrowBaseX - headWidth * Math.cos(angle + Math.PI / 2);
+        const rightY = arrowBaseY - headWidth * Math.sin(angle + Math.PI / 2);
+        ctx.lineTo(rightX, rightY);
+        
+        ctx.closePath();
+        
+        // Fill and stroke for a nice arrowhead
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    function showTextInput(x, y) {
+      const container = document.getElementById('textInputContainer');
+      const input = document.getElementById('textInput');
+      const canvasRect = canvas.getBoundingClientRect();
+      
+      // Position the input absolutely
+      container.style.left = (canvasRect.left + x) + 'px';
+      container.style.top = (canvasRect.top + y) + 'px';
+      container.style.display = 'block';
+      container.style.position = 'fixed';
+      container.style.zIndex = '1000';
+      
+      // Set the text color to match the selected color
+      input.style.color = currentColor;
+      input.value = '';
+      
+      // Remove any existing handlers
+      const newInput = input.cloneNode(true);
+      newInput.style.color = currentColor;
+      input.parentNode.replaceChild(newInput, input);
+      
+      // Focus and add handler
+      setTimeout(() => {
+        const newInputEl = document.getElementById('textInput');
+        newInputEl.focus();
+        newInputEl.style.color = currentColor;
+        
+        newInputEl.onkeydown = (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (newInputEl.value.trim()) {
+              shapes.push({
+                type: 'text',
+                x: textStartX,
+                y: textStartY,
+                text: newInputEl.value,
+                color: currentColor,
+                size: textSize,
+                bold: true
+              });
+              redraw();
+            }
+            container.style.display = 'none';
+            newInputEl.value = '';
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            container.style.display = 'none';
+            newInputEl.value = '';
+          }
+        };
+      }, 10);
+    }
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+
+      shapes.forEach((shape, index) => {
+        ctx.strokeStyle = shape.color;
+        ctx.fillStyle = shape.color;
+        ctx.lineWidth = shape.thickness;
+
+        if (shape.type === 'rect') {
+          const minX = Math.min(shape.startX, shape.endX);
+          const minY = Math.min(shape.startY, shape.endY);
+          const maxX = Math.max(shape.startX, shape.endX);
+          const maxY = Math.max(shape.startY, shape.endY);
+          ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+          
+          // Highlight selected shape
+          if (index === selectedShapeIndex) {
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#4a86e8';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(minX - 5, minY - 5, (maxX - minX) + 10, (maxY - minY) + 10);
+            ctx.setLineDash([]);
+          }
+        } else if (shape.type === 'circle') {
+          const radius = Math.sqrt(Math.pow(shape.endX - shape.startX, 2) + Math.pow(shape.endY - shape.startY, 2));
+          ctx.beginPath();
+          ctx.arc(shape.startX, shape.startY, radius, 0, 2 * Math.PI);
+          ctx.stroke();
+          
+          // Highlight selected shape
+          if (index === selectedShapeIndex) {
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#4a86e8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(shape.startX, shape.startY, radius + 5, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        } else if (shape.type === 'arrow') {
+          drawArrow(ctx, shape.startX, shape.startY, shape.endX, shape.endY, shape.thickness);
+          
+          // Highlight selected shape
+          if (index === selectedShapeIndex) {
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#4a86e8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(shape.startX, shape.startY);
+            ctx.lineTo(shape.endX, shape.endY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        } else if (shape.type === 'line') {
+          ctx.beginPath();
+          ctx.moveTo(shape.startX, shape.startY);
+          ctx.lineTo(shape.endX, shape.endY);
+          ctx.stroke();
+          
+          // Highlight selected shape
+          if (index === selectedShapeIndex) {
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#4a86e8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(shape.startX, shape.startY);
+            ctx.lineTo(shape.endX, shape.endY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        } else if (shape.type === 'text') {
+          const fontWeight = shape.bold ? 'bold' : 'normal';
+          ctx.font = `${fontWeight} ${shape.size}px Arial`;
+          ctx.fillStyle = shape.color;
+          ctx.fillText(shape.text, shape.x, shape.y);
+          
+          // Highlight selected text
+          if (index === selectedShapeIndex) {
+            const textWidth = ctx.measureText(shape.text).width;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#4a86e8';
+            ctx.strokeRect(shape.x - 5, shape.y - shape.size - 5, textWidth + 10, shape.size + 10);
+            ctx.setLineDash([]);
+          }
+        }
+      });
+    }
+
+    function loadImage(imagePath) {
+      originalImage.onload = () => {
+        // Get editor screen size (canvas container)
+        const canvasContainer = document.querySelector('.canvas-container');
+        const containerWidth = canvasContainer.clientWidth - 40; // Subtract padding
+        const containerHeight = canvasContainer.clientHeight - 40;
+        
+        const imageWidth = originalImage.width;
+        const imageHeight = originalImage.height;
+        
+        // Calculate what 60% of screen size would be
+        const sixtyPercentWidth = containerWidth * 0.6;
+        const sixtyPercentHeight = containerHeight * 0.6;
+        
+        // Check if image is smaller than 60% of editor screen
+        const isSmallerThan60Percent = imageWidth < sixtyPercentWidth && imageHeight < sixtyPercentHeight;
+        
+        let finalWidth, finalHeight;
+        
+        if (isSmallerThan60Percent) {
+          // Scale to 70% of screen with higher definition for readability
+          const targetWidth = containerWidth * 0.7;
+          const targetHeight = containerHeight * 0.7;
+          
+          // Calculate scale to fit 70% while maintaining aspect ratio
+          const scaleX = targetWidth / imageWidth;
+          const scaleY = targetHeight / imageHeight;
+          const scale = Math.min(scaleX, scaleY);
+          
+          // Calculate final dimensions for 70% of screen
+          finalWidth = Math.round(imageWidth * scale);
+          finalHeight = Math.round(imageHeight * scale);
+          
+          // Enable high-quality image smoothing for better readability
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // Set canvas size to scaled dimensions (70% of screen)
+          canvas.width = finalWidth;
+          canvas.height = finalHeight;
+          
+          // Draw image at scaled size with high quality
+          ctx.drawImage(originalImage, 0, 0, finalWidth, finalHeight);
+        } else {
+          // Image is large enough - fit to container, allow scrolling if larger
+          canvas.width = imageWidth;
+          canvas.height = imageHeight;
+          
+          // Calculate scale to fit container while maintaining aspect ratio
+          const scaleX = containerWidth / imageWidth;
+          const scaleY = containerHeight / imageHeight;
+          const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
+          
+          // Only scale down if image is larger than container
+          if (fitScale < 1) {
+            canvas.style.width = (imageWidth * fitScale) + 'px';
+            canvas.style.height = (imageHeight * fitScale) + 'px';
+          } else {
+            // Keep original size if smaller than container
+            canvas.style.width = imageWidth + 'px';
+            canvas.style.height = imageHeight + 'px';
+          }
+          
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(originalImage, 0, 0);
+        }
+        
+        // Redraw any existing shapes
+        if (shapes.length > 0) {
+          redraw();
+        }
+      };
+      originalImage.src = imagePath;
+    }
+
+    function saveImage() {
+      const imageData = canvas.toDataURL('image/png');
+      ipcRenderer.send('save-edited-image', imageData);
+    }
+
+    // Receive image path from main process
+    ipcRenderer.on('load-image', (event, imagePath) => {
+      loadImage(imagePath);
+    });
+
+
+    // Handle save edited image response - close window immediately after save
+    ipcRenderer.on('image-saved', (event, filepath) => {
+      window.close();
+    });
+  </script>
+</body>
+</html>
+

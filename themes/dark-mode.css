@@ -1,0 +1,108 @@
+/* ========================================
+   DARK MODE THEME - Clean & Simple
+   ======================================== */
+
+/* === MAIN BACKGROUND === */
+body[data-theme="dark-mode"] {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+}
+
+/* === HEADER & TABS === */
+body[data-theme="dark-mode"] .header,
+body[data-theme="dark-mode"] .tabs {
+  background-color: #2d2d2d !important;
+  border-bottom: 1px solid #404040 !important;
+}
+
+body[data-theme="dark-mode"] .footer {
+  background-color: #2d2d2d !important;
+  border-top: 1px solid #404040 !important;
+  color: #e0e0e0 !important;
+}
+
+body[data-theme="dark-mode"] .tab {
+  color: #b0b0b0 !important;
+}
+
+body[data-theme="dark-mode"] .tab:hover {
+  background-color: #3a3a3a !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="dark-mode"] .tab.active {
+  background-color: #404040 !important;
+  color: #ffffff !important;
+  border-bottom: 2px solid #4a86e8 !important;
+}
+
+/* === SEARCH BAR === */
+body[data-theme="dark-mode"] .search-bar {
+  background-color: #2d2d2d !important;
+}
+
+body[data-theme="dark-mode"] .search-bar input {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+  border-color: #404040 !important;
+}
+
+/* === MAIN TABS === */
+body[data-theme="dark-mode"] #history-tab,
+body[data-theme="dark-mode"] #pinned-tab,
+body[data-theme="dark-mode"] #screenerTab {
+  background: #1a1a1a !important;
+  color: #e0e0e0 !important;
+}
+
+body[data-theme="dark-mode"] .clip-item {
+  background: #2d2d2d !important;
+  border: 1px solid #404040 !important;
+  color: #e0e0e0 !important;
+}
+
+body[data-theme="dark-mode"] .clip-item:hover {
+  background: #3a3a3a !important;
+  border-color: #4a86e8 !important;
+}
+
+/* === LOGINNER TAB === */
+body[data-theme="dark-mode"] #loginner-tab {
+  background: #1a1a1a !important;
+  color: #e0e0e0 !important;
+}
+
+body[data-theme="dark-mode"] #loginner-tab .material-icons {
+  color: #4a86e8 !important;
+}
+
+/* === PLANNER === */
+body[data-theme="dark-mode"] #planner-tab {
+  background: #1a1a1a !important;
+}
+
+body[data-theme="dark-mode"] .planner-day {
+  background: #2d2d2d !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #404040 !important;
+}
+
+body[data-theme="dark-mode"] .planner-card {
+  background: #2d2d2d !important;
+  border: 1px solid #404040 !important;
+}
+
+/* === BUTTONS === */
+body[data-theme="dark-mode"] button {
+  background-color: #4a86e8 !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="dark-mode"] button:hover {
+  background-color: #357abd !important;
+}
+
+body[data-theme="dark-mode"] #loginner-settings-btn .material-icons {
+  color: #4a86e8 !important;
+}
+

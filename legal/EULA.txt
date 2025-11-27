@@ -1,0 +1,63 @@
+END USER LICENSE AGREEMENT (EULA)
+ClipMaster - Professional Clipboard Manager
+
+IMPORTANT: READ CAREFULLY BEFORE INSTALLING OR USING THIS SOFTWARE
+
+This End User License Agreement ("Agreement") is a legal agreement between you ("User") and ClipMaster ("Software Provider") for the use of ClipMaster software ("Software").
+
+BY INSTALLING, COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THE TERMS OF THIS AGREEMENT.
+
+1. LICENSE GRANT
+ClipMaster grants you a non-exclusive, non-transferable license to:
+- Install and use the Software on your personal computers
+- Use the Software for personal and commercial purposes
+- Create backups for archival purposes
+
+2. RESTRICTIONS
+You may NOT:
+- Modify, reverse-engineer, decompile, or disassemble the Software
+- Remove or alter any copyright, trademark, or proprietary notices
+- Redistribute, resell, or sublicense the Software
+- Use the Software for illegal activities
+- Share your license with others
+
+3. DATA AND PRIVACY
+- ClipMaster stores clipboard data locally on your device
+- No data is transmitted to external servers
+- You are responsible for the content you store
+- ClipMaster is not responsible for sensitive data you choose to store
+
+4. SYSTEM INTEGRATION
+- The Software integrates with Windows clipboard system
+- It uses system tray and global hotkeys
+- It may interact with other applications for paste functionality
+- Some antivirus software may flag clipboard managers - this is normal
+
+5. WARRANTIES AND LIABILITY
+- Software is provided "AS-IS" without warranties of any kind
+- ClipMaster does not guarantee uninterrupted or error-free operation
+- You use the Software at your own risk
+- ClipMaster is not liable for any data loss or damages
+
+6. AUTOMATIC UPDATES
+- Software may check for and install updates automatically
+- Updates are subject to this same Agreement
+- You may disable automatic updates in settings
+
+7. TERMINATION
+- This license is effective until terminated
+- You may terminate by uninstalling the Software
+- License terminates automatically if you violate this Agreement
+
+8. SUPPORT AND CONTACT
+- Support is provided on a best-effort basis
+- Contact information available in the application
+
+9. GOVERNING LAW
+This Agreement is governed by the laws of your local jurisdiction.
+
+ACCEPTANCE
+By clicking "I Agree" or installing the Software, you acknowledge that you have read this Agreement, understand it, and agree to be bound by its terms.
+
+Copyright © 2025 ClipMaster. All rights reserved.
+Version 1.0 - January 2025 

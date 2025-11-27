@@ -1,0 +1,108 @@
+/* ========================================
+   DARK BEIGE THEME - Clean & Simple
+   ======================================== */
+
+/* === MAIN BACKGROUND === */
+body[data-theme="dark-beige"] {
+  background-color: #2c2416 !important;
+  color: #e8d5b7 !important;
+}
+
+/* === HEADER & TABS === */
+body[data-theme="dark-beige"] .header,
+body[data-theme="dark-beige"] .tabs {
+  background-color: #3d321f !important;
+  border-bottom: 1px solid #5a4a2e !important;
+}
+
+body[data-theme="dark-beige"] .footer {
+  background-color: #3d321f !important;
+  border-top: 1px solid #5a4a2e !important;
+  color: #e8d5b7 !important;
+}
+
+body[data-theme="dark-beige"] .tab {
+  color: #c9b38c !important;
+}
+
+body[data-theme="dark-beige"] .tab:hover {
+  background-color: #4a3d26 !important;
+  color: #e8d5b7 !important;
+}
+
+body[data-theme="dark-beige"] .tab.active {
+  background-color: #5a4a2e !important;
+  color: #e8d5b7 !important;
+  border-bottom: 2px solid #c9b38c !important;
+}
+
+/* === SEARCH BAR === */
+body[data-theme="dark-beige"] .search-bar {
+  background-color: #3d321f !important;
+}
+
+body[data-theme="dark-beige"] .search-bar input {
+  background-color: #2c2416 !important;
+  color: #e8d5b7 !important;
+  border-color: #5a4a2e !important;
+}
+
+/* === MAIN TABS === */
+body[data-theme="dark-beige"] #history-tab,
+body[data-theme="dark-beige"] #pinned-tab,
+body[data-theme="dark-beige"] #screenerTab {
+  background: #2c2416 !important;
+  color: #e8d5b7 !important;
+}
+
+body[data-theme="dark-beige"] .clip-item {
+  background: #3d321f !important;
+  border: 1px solid #5a4a2e !important;
+  color: #e8d5b7 !important;
+}
+
+body[data-theme="dark-beige"] .clip-item:hover {
+  background: #4a3d26 !important;
+  border-color: #c9b38c !important;
+}
+
+/* === LOGINNER TAB === */
+body[data-theme="dark-beige"] #loginner-tab {
+  background: #2c2416 !important;
+  color: #e8d5b7 !important;
+}
+
+body[data-theme="dark-beige"] #loginner-tab .material-icons {
+  color: #c9b38c !important;
+}
+
+/* === PLANNER === */
+body[data-theme="dark-beige"] #planner-tab {
+  background: #2c2416 !important;
+}
+
+body[data-theme="dark-beige"] .planner-day {
+  background: #3d321f !important;
+  color: #e8d5b7 !important;
+  border: 1px solid #5a4a2e !important;
+}
+
+body[data-theme="dark-beige"] .planner-card {
+  background: #3d321f !important;
+  border: 1px solid #5a4a2e !important;
+}
+
+/* === BUTTONS === */
+body[data-theme="dark-beige"] button {
+  background-color: #c9b38c !important;
+  color: #2c2416 !important;
+}
+
+body[data-theme="dark-beige"] button:hover {
+  background-color: #d4c19a !important;
+}
+
+body[data-theme="dark-beige"] #loginner-settings-btn .material-icons {
+  color: #c9b38c !important;
+}
+

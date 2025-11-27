@@ -1,0 +1,107 @@
+/* ========================================
+   CLASSIC BLUE THEME - Clean & Simple
+   ======================================== */
+
+/* === MAIN BACKGROUND === */
+body[data-theme="classic-blue"] {
+  background-color: #ffffff !important;
+  color: #333333 !important;
+}
+
+/* === HEADER & TABS === */
+body[data-theme="classic-blue"] .header,
+body[data-theme="classic-blue"] .tabs {
+  background-color: #f5f5f5 !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+}
+
+body[data-theme="classic-blue"] .footer {
+  background-color: #f5f5f5 !important;
+  border-top: 1px solid #e0e0e0 !important;
+  color: #333333 !important;
+}
+
+body[data-theme="classic-blue"] .tab {
+  color: #4a86e8 !important;
+}
+
+body[data-theme="classic-blue"] .tab:hover {
+  background-color: #e8f0fe !important;
+}
+
+body[data-theme="classic-blue"] .tab.active {
+  background-color: #e8f0fe !important;
+  color: #1967d2 !important;
+  border-bottom: 2px solid #4a86e8 !important;
+}
+
+/* === SEARCH BAR === */
+body[data-theme="classic-blue"] .search-bar {
+  background-color: #ffffff !important;
+}
+
+body[data-theme="classic-blue"] .search-bar input {
+  background-color: #f5f5f5 !important;
+  color: #333333 !important;
+  border-color: #e0e0e0 !important;
+}
+
+/* === MAIN TABS === */
+body[data-theme="classic-blue"] #history-tab,
+body[data-theme="classic-blue"] #pinned-tab,
+body[data-theme="classic-blue"] #screenerTab {
+  background: #ffffff !important;
+  color: #333333 !important;
+}
+
+body[data-theme="classic-blue"] .clip-item {
+  background: #ffffff !important;
+  border: 1px solid #e0e0e0 !important;
+  color: #333333 !important;
+}
+
+body[data-theme="classic-blue"] .clip-item:hover {
+  background: #f5f5f5 !important;
+  border-color: #4a86e8 !important;
+}
+
+/* === LOGINNER TAB === */
+body[data-theme="classic-blue"] #loginner-tab {
+  background: #ffffff !important;
+  color: #333333 !important;
+}
+
+body[data-theme="classic-blue"] #loginner-tab .material-icons {
+  color: #4a86e8 !important;
+}
+
+/* === PLANNER === */
+body[data-theme="classic-blue"] #planner-tab {
+  background: #ffffff !important;
+}
+
+body[data-theme="classic-blue"] .planner-day {
+  background: #ffffff !important;
+  color: #333333 !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+body[data-theme="classic-blue"] .planner-card {
+  background: #ffffff !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+/* === BUTTONS === */
+body[data-theme="classic-blue"] button {
+  background-color: #4a86e8 !important;
+  color: #ffffff !important;
+}
+
+body[data-theme="classic-blue"] button:hover {
+  background-color: #357abd !important;
+}
+
+body[data-theme="classic-blue"] #loginner-settings-btn .material-icons {
+  color: #4a86e8 !important;
+}
+

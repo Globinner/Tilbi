@@ -1,0 +1,21 @@
+TERMS OF SERVICE
+
+Welcome to ClipMaster. By using this software, you agree to the following terms:
+
+1. Service Description: ClipMaster is a clipboard management application that helps you organize and access your clipboard history.
+
+2. Acceptable Use: You may use ClipMaster for personal or commercial purposes in accordance with the End User License Agreement.
+
+3. User Responsibilities: You are responsible for the content you copy and manage through ClipMaster. We are not responsible for any sensitive or confidential information you choose to store.
+
+4. Data Storage: All data is stored locally on your device. We do not have access to your clipboard content or screenshots.
+
+5. Updates: ClipMaster may receive updates to improve functionality and security. You are responsible for keeping the software updated.
+
+6. Disclaimers: ClipMaster is provided "as-is" without any warranties. We are not liable for any damages arising from the use of this software.
+
+7. Termination: We reserve the right to terminate or modify the service at any time.
+
+8. Changes to Terms: These terms may be updated from time to time. Continued use of ClipMaster constitutes acceptance of any changes.
+
+For questions about these terms, please contact: [your-email@domain.com] 

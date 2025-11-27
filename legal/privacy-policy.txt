@@ -1,0 +1,23 @@
+PRIVACY POLICY - ClipMaster (Free Version)
+
+ClipMaster values your privacy. Here's how we handle your data:
+
+1. Data Collection: ClipMaster stores your clipboard history locally on your device. We do not collect, upload, or transmit any data to external servers.
+
+2. Screenshots & Clipboard: These are saved only locally and never shared unless you export/share them manually.
+
+3. No Cloud/Internet Use: ClipMaster is an offline-first application. No cloud syncing or online tracking is used.
+
+4. Security: We do not access or store user credentials, personal files, or sensitive data.
+
+5. Automatic Updates: ClipMaster may check for updates automatically, but no personal data is transmitted during this process.
+
+6. GDPR/CCPA: As ClipMaster does not process personal data, these regulations do not directly apply. No user profiling is performed.
+
+7. Local Storage Only: All data including clipboard history, screenshots, and settings are stored exclusively on your device.
+
+8. No User Accounts: ClipMaster does not require user registration or login. No personal information is collected.
+
+For cloud features and cross-device sync, please consider ClipMaster Pro.
+
+Contact: [your-email@domain.com] 

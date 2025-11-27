@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Select Area</title>
+  <style>
+    /* Custom cursor with visual indicator */
+    #cursorIndicator {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #4a86e8;
+      border-radius: 50%;
+      background: rgba(74, 134, 232, 0.3);
+      pointer-events: none;
+      z-index: 10000;
+      transform: translate(-50%, -50%);
+      transition: opacity 0.1s ease;
+      opacity: 0;
+    }
+
+    #cursorIndicator.visible {
+      opacity: 1;
+    }
+
+    /* Crosshair indicator */
+    #crosshairIndicator {
+      position: fixed;
+      width: 1px;
+      height: 20px;
+      background: #4a86e8;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: opacity 0.1s ease;
+      opacity: 0;
+    }
+
+    #crosshairIndicator::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 1px;
+      background: #4a86e8;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #crosshairIndicator.visible {
+      opacity: 1;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      cursor: crosshair;
+      user-select: none;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    #selection {
+      position: absolute;
+      border: 2px solid #4a86e8;
+      background: rgba(74, 134, 232, 0.1);
+      display: none;
+      pointer-events: none;
+    }
+
+    #shapeToggle {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: inline-flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      color: #333;
+      user-select: none;
+      align-items: center;
+      z-index: 10000;
+      pointer-events: auto;
+    }
+
+    #shapeToggle .btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #e2e2e2;
+      cursor: pointer;
+      background: #f7f7f7;
+      pointer-events: auto;
+      transition: background 0.2s;
+    }
+    
+    #shapeToggle .btn:hover {
+      background: #e8e8e8;
+    }
+
+    #shapeToggle .btn.active {
+      background: #4a86e8;
+      color: #fff;
+      border-color: #4a86e8;
+    }
+
+    .selection-guide {
+      position: fixed;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      color: #333;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .capture-button {
+      position: fixed;
+      background: #4a86e8;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 4px 12px rgba(74, 134, 232, 0.4);
+      transition: all 0.2s ease;
+      z-index: 10001;
+      pointer-events: auto;
+    }
+
+    .capture-button:hover {
+      background: #3b78e7;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(74, 134, 232, 0.5);
+    }
+
+    .capture-button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(74, 134, 232, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay"></div>
+  <div id="cursorIndicator"></div>
+  <div id="crosshairIndicator"></div>
+  <div id="shapeToggle" title="Selection shape (press C to toggle)">
+    <div id="btnRect" class="btn active">Rect</div>
+    <div id="btnCircle" class="btn">Circle</div>
+    <div id="btnFullScreen" class="btn">Full Screen</div>
+    <div id="btnFullWebpage" class="btn">Full Webpage</div>
+  </div>
+  <div id="selection"></div>
+  <div id="captureButton" class="capture-button" style="display: none;">Capture</div>
+  <div class="selection-guide">Click and drag to select an area</div>
+  
+  <!-- URL Input Dialog -->
+  <div id="urlInputDialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 20000; min-width: 400px; pointer-events: auto;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #333;">Enter Webpage URL</div>
+    <input type="text" id="urlInput" placeholder="https://example.com" style="width: 100%; padding: 10px; font-size: 14px; border: 2px solid #ddd; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box; margin-bottom: 12px; pointer-events: auto;" />
+    <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+      <label style="display: flex; align-items: center; gap: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: #444;">
+        <input type="checkbox" id="interactiveMode" style="pointer-events: auto;" />
+        <span>Interactive login <strong>(Required for logged-in pages)</strong> - Opens window to log in, then click "📷 Capture Page" or press Ctrl+Shift+S</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: #444;">
+        <input type="checkbox" id="hiResMode" style="pointer-events: auto;" />
+        <span>Hi‑Res capture (up to 8000×60000, slower and larger file)</span>
+      </label>
+    </div>
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button id="urlCancelBtn" style="padding: 10px 20px; background: #f0f0f0; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; pointer-events: auto;">Cancel</button>
+      <button id="urlSubmitBtn" style="padding: 10px 20px; background: #4a86e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; pointer-events: auto;">Capture</button>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    const overlay = document.getElementById('overlay');
+    const selection = document.getElementById('selection');
+    const guide = document.querySelector('.selection-guide');
+    const btnRect = document.getElementById('btnRect');
+    const btnCircle = document.getElementById('btnCircle');
+    const btnFullScreen = document.getElementById('btnFullScreen');
+    const btnFullWebpage = document.getElementById('btnFullWebpage');
+    const captureButton = document.getElementById('captureButton');
+    const cursorIndicator = document.getElementById('cursorIndicator');
+    const crosshairIndicator = document.getElementById('crosshairIndicator');
+    
+    let isDrawing = false;
+    let startX, startY;
+    let selectionShape = 'rect';
+    let isMovingCircle = false;
+    let circleMoveOffsetX = 0;
+    let circleMoveOffsetY = 0;
+
+    // Cursor tracking for visual indicator
+    function updateCursorPosition(e) {
+      if (cursorIndicator) {
+        cursorIndicator.style.left = e.clientX + 'px';
+        cursorIndicator.style.top = e.clientY + 'px';
+      }
+      if (crosshairIndicator) {
+        crosshairIndicator.style.left = e.clientX + 'px';
+        crosshairIndicator.style.top = e.clientY + 'px';
+      }
+    }
+
+    // Show/hide cursor indicators
+    function showCursorIndicators() {
+      if (cursorIndicator) cursorIndicator.classList.add('visible');
+      if (crosshairIndicator) crosshairIndicator.classList.add('visible');
+    }
+
+    function hideCursorIndicators() {
+      if (cursorIndicator) cursorIndicator.classList.remove('visible');
+      if (crosshairIndicator) crosshairIndicator.classList.remove('visible');
+    }
+
+    // Add cursor tracking on mouse move
+    document.addEventListener('mousemove', updateCursorPosition);
+    
+    // Show cursor indicators immediately when overlay loads
+    showCursorIndicators();
+
+    function resetSelection() {
+      selection.style.display = 'none';
+      selection.style.border = '2px solid #4a86e8';
+      selection.style.boxShadow = 'none';
+      selection.style.cursor = 'default';
+      captureButton.style.display = 'none';
+      isDrawing = false;
+      isMovingCircle = false;
+      circleMoveOffsetX = 0;
+      circleMoveOffsetY = 0;
+      hideCursorIndicators();
+    }
+
+    function setShape(shape) {
+      resetSelection();
+      selectionShape = shape === 'circle' ? 'circle' : 'rect';
+      if (selectionShape === 'circle') {
+        selection.style.borderRadius = '50%';
+        btnCircle.classList.add('active');
+        btnRect.classList.remove('active');
+        guide.textContent = 'Drag to select a circular area';
+      } else {
+        selection.style.borderRadius = '0';
+        btnRect.classList.add('active');
+        btnCircle.classList.remove('active');
+        guide.textContent = 'Click and drag to select an area';
+      }
+    }
+
+    function updateGuidePosition(e) {
+      guide.style.left = (e.clientX + 15) + 'px';
+      guide.style.top = (e.clientY + 15) + 'px';
+    }
+
+    function updateSelectionBox(e) {
+      const currentX = e.clientX;
+      const currentY = e.clientY;
+      
+      const width = Math.abs(currentX - startX);
+      const height = Math.abs(currentY - startY);
+      
+      if (selectionShape === 'circle') {
+        const size = Math.max(width, height);
+        const left = currentX >= startX ? startX : startX - size;
+        const top = currentY >= startY ? startY : startY - size;
+        selection.style.left = left + 'px';
+        selection.style.top = top + 'px';
+        selection.style.width = size + 'px';
+        selection.style.height = size + 'px';
+        guide.textContent = `${size} ◯`;
+      } else {
+        const left = Math.min(startX, currentX);
+        const top = Math.min(startY, currentY);
+        selection.style.left = left + 'px';
+        selection.style.top = top + 'px';
+        selection.style.width = width + 'px';
+        selection.style.height = height + 'px';
+        guide.textContent = `${width} × ${height}`;
+      }
+    }
+
+    function handleMouseDown(e) {
+      // Ignore clicks on the shape toggle UI, capture button, and URL dialog
+      if (e.target && e.target.closest && (e.target.closest('#shapeToggle') || e.target.closest('#captureButton') || e.target.closest('#urlInputDialog'))) {
+        e.stopPropagation();
+        return;
+      }
+      
+      // Show cursor indicators when starting to draw
+      showCursorIndicators();
+      
+      // If we're in circle move mode, handle movement
+      if (isMovingCircle) {
+        // Start moving the circle
+        const bounds = selection.getBoundingClientRect();
+        isDrawing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        circleMoveOffsetX = e.clientX - bounds.x;
+        circleMoveOffsetY = e.clientY - bounds.y;
+        return;
+      }
+      
+      // Normal drawing mode
+      isDrawing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      selection.style.display = 'block';
+      selection.style.width = '0';
+      selection.style.height = '0';
+      selection.style.left = startX + 'px';
+      selection.style.top = startY + 'px';
+    }
+
+    function handleMouseMove(e) {
+      updateGuidePosition(e);
+      if (isDrawing) {
+        if (isMovingCircle) {
+          // Handle circle movement
+          const newX = e.clientX - circleMoveOffsetX;
+          const newY = e.clientY - circleMoveOffsetY;
+          
+          // Keep circle within screen bounds
+          const bounds = selection.getBoundingClientRect();
+          const maxX = window.innerWidth - bounds.width;
+          const maxY = window.innerHeight - bounds.height;
+          
+          selection.style.left = Math.max(0, Math.min(newX, maxX)) + 'px';
+          selection.style.top = Math.max(0, Math.min(newY, maxY)) + 'px';
+          
+          // Update capture button position
+          const newBounds = selection.getBoundingClientRect();
+          captureButton.style.left = (newBounds.x + newBounds.width + 10) + 'px';
+          captureButton.style.top = (newBounds.y + newBounds.height / 2 - 20) + 'px';
+          
+          // Update guide text with current position
+          const centerX = Math.round(newBounds.x + newBounds.width / 2);
+          const centerY = Math.round(newBounds.y + newBounds.height / 2);
+          guide.textContent = `Circle at (${centerX}, ${centerY}) - Click Capture to take shot`;
+        } else {
+          // Normal selection drawing
+          updateSelectionBox(e);
+        }
+        e.preventDefault();
+      }
+    }
+
+    function handleMouseUp(e) {
+      if (!isDrawing) return;
+      
+      isDrawing = false;
+      const bounds = selection.getBoundingClientRect();
+      
+      // Hide cursor indicators when done drawing
+      hideCursorIndicators();
+      
+      // Only proceed if the selection has a valid size
+      if (bounds.width > 10 && bounds.height > 10) {
+        if (selectionShape === 'circle') {
+          // For circles, enter move mode instead of immediately capturing
+          isMovingCircle = true;
+          guide.textContent = 'Drag to move circle, then click Capture';
+          selection.style.cursor = 'move';
+          
+          // Store the initial position for move calculations
+          circleMoveOffsetX = 0;
+          circleMoveOffsetY = 0;
+          
+          // Add visual feedback for move mode
+          selection.style.border = '3px solid #4a86e8';
+          selection.style.boxShadow = '0 0 15px rgba(74, 134, 232, 0.6)';
+          
+          // Show and position the capture button
+          captureButton.style.display = 'block';
+          const bounds = selection.getBoundingClientRect();
+          captureButton.style.left = (bounds.x + bounds.width + 10) + 'px';
+          captureButton.style.top = (bounds.y + bounds.height / 2 - 20) + 'px';
+        } else {
+          // For rectangles, capture immediately as before
+          const payload = {
+            x: Math.round(bounds.x),
+            y: Math.round(bounds.y),
+            width: Math.round(bounds.width),
+            height: Math.round(bounds.height),
+            shape: 'rect'
+          };
+          console.log('SENDING RECT DATA:', payload);
+          ipcRenderer.send('capture-selected-area', payload);
+        }
+      } else {
+        // If selection is too small, cancel it
+        ipcRenderer.send('cancel-selection');
+      }
+    }
+
+    function captureFullScreen() {
+      console.log('Full screen capture triggered');
+      const payload = {
+        x: 0,
+        y: 0,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        shape: 'fullscreen'
+      };
+      console.log('SENDING FULLSCREEN DATA:', payload);
+      ipcRenderer.send('capture-selected-area', payload);
+      // Window will be closed by the backend after capture
+    }
+
+    function captureFullWebpage() {
+      console.log('Full webpage capture triggered - showing URL input');
+      const urlDialog = document.getElementById('urlInputDialog');
+      const urlInput = document.getElementById('urlInput');
+      
+      // Try to pre-fill with clipboard content
+      const { clipboard } = require('electron');
+      const clipboardText = clipboard.readText();
+      if (clipboardText && (clipboardText.startsWith('http') || clipboardText.includes('.'))) {
+        urlInput.value = clipboardText;
+      } else {
+        urlInput.value = '';
+      }
+      
+      urlDialog.style.display = 'block';
+      
+      // Focus after a small delay to ensure dialog is rendered
+      setTimeout(() => {
+        urlInput.focus();
+        urlInput.select();
+      }, 50);
+    }
+
+    // Add event listeners to document instead of overlay
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    // Shape toggle handlers
+    btnRect.addEventListener('click', () => setShape('rect'));
+    btnCircle.addEventListener('click', () => setShape('circle'));
+    btnFullScreen.addEventListener('click', () => captureFullScreen());
+    btnFullWebpage.addEventListener('click', () => captureFullWebpage());
+    
+    // URL Input Dialog handlers
+    const urlDialog = document.getElementById('urlInputDialog');
+    const urlInput = document.getElementById('urlInput');
+    const urlSubmitBtn = document.getElementById('urlSubmitBtn');
+    const urlCancelBtn = document.getElementById('urlCancelBtn');
+    const interactiveMode = document.getElementById('interactiveMode');
+    const hiResMode = document.getElementById('hiResMode');
+    
+    urlSubmitBtn.addEventListener('click', () => {
+      const url = urlInput.value.trim();
+      const interactive = !!(interactiveMode && interactiveMode.checked);
+      const hiRes = !!(hiResMode && hiResMode.checked);
+      if (url) {
+        console.log('SENDING FULL WEBPAGE CAPTURE REQUEST:', { url, interactive, hiRes });
+        urlDialog.style.display = 'none';
+        ipcRenderer.send('capture-full-webpage', { url, interactive, hiRes });
+        // Close the selection window immediately after sending request
+        setTimeout(() => {
+          window.close();
+        }, 100);
+      }
+    });
+    
+    urlCancelBtn.addEventListener('click', () => {
+      urlDialog.style.display = 'none';
+    });
+    
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        urlSubmitBtn.click();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        urlCancelBtn.click();
+      }
+    });
+    
+    // Capture button handler
+    captureButton.addEventListener('click', () => {
+      const bounds = selection.getBoundingClientRect();
+      const payload = {
+        x: Math.round(bounds.x),
+        y: Math.round(bounds.y),
+        width: Math.round(bounds.width),
+        height: Math.round(bounds.height),
+        shape: 'circle',
+        circle: {
+          cx: Math.round(bounds.x + bounds.width / 2),
+          cy: Math.round(bounds.y + bounds.height / 2),
+          r: Math.round(Math.min(bounds.width, bounds.height) / 2)
+        }
+      };
+      console.log('SENDING CIRCLE DATA:', payload);
+      ipcRenderer.send('capture-selected-area', payload);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'c') {
+        setShape(selectionShape === 'circle' ? 'rect' : 'circle');
+      }
+    });
+
+    // Handle mouse leaving the window
+    document.addEventListener('mouseleave', () => {
+      if (isDrawing) {
+        isDrawing = false;
+        if (isMovingCircle) {
+          // Just stop moving, don't cancel selection
+          isMovingCircle = false;
+        } else {
+          ipcRenderer.send('cancel-selection');
+        }
+      }
+    });
+
+    // Cancel selection with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // Check if URL dialog is open
+        if (urlDialog.style.display === 'block') {
+          // Just close the dialog, don't cancel selection
+          urlDialog.style.display = 'none';
+        } else if (isMovingCircle) {
+          // Reset to drawing mode
+          resetSelection();
+          guide.textContent = selectionShape === 'circle' ? 'Drag to select a circular area' : 'Click and drag to select an area';
+        } else {
+          ipcRenderer.send('cancel-selection');
+        }
+      }
+    });
+
+    // Prevent text selection and context menu (except in URL dialog)
+    document.addEventListener('selectstart', e => {
+      if (!e.target.closest('#urlInputDialog')) {
+        e.preventDefault();
+      }
+    });
+    document.addEventListener('contextmenu', e => {
+      if (!e.target.closest('#urlInputDialog')) {
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>

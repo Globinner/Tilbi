@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Video Recording</title>
+  <style>
+    html, body { background: transparent; }
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+
+
+    /* Mark the whole window as draggable so it can move anywhere */
+    body { -webkit-app-region: drag; }
+
+    #video-controls {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(15, 18, 28, 0.95);
+      border-radius: 20px;
+      padding: 8px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 999999;
+      border: 2px solid rgba(74, 134, 232, 0.8);
+      user-select: none;
+      -webkit-app-region: drag;
+      box-sizing: border-box;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .control-button {
+      background: #4a86e8;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+
+    .control-button:hover {
+      background: #3b78e7;
+    }
+
+    .control-button.recording {
+      background: #e74c3c;
+    }
+
+    .control-button.recording:hover {
+      background: #c0392b;
+    }
+
+    .status-indicator {
+      color: white;
+      font-size: 12px;
+      text-align: center;
+      padding: 5px 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      min-width: 120px;
+      white-space: nowrap;
+    }
+
+
+    .recording-status {
+      background: rgba(231, 76, 60, 0.8);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+
+    .recording-timer {
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .drag-handle {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #9bb6f3;
+      font-size: 14px;
+      cursor: move;
+      padding: 4px;
+      margin-right: 2px;
+      user-select: none;
+    }
+
+    .btn-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 6px;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: #e2e8ff;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.05s;
+      user-select: none;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn:hover { background: rgba(255,255,255,0.12); }
+    .icon-btn:active { transform: scale(0.96); }
+
+    .icon-btn.record { background: rgba(231, 76, 60, 0.18); border-color: rgba(231, 76, 60, 0.5); color: #ff6b5e; }
+    .icon-btn.stop { background: rgba(231, 76, 60, 0.28); border-color: rgba(231, 76, 60, 0.6); color: #ff887d; }
+    .icon-btn.cancel { background: rgba(255,255,255,0.06); }
+
+    .material-icons { font-size: 20px; line-height: 1; }
+
+    .mic-on { background: rgba(40, 167, 69, 0.18); border-color: rgba(40,167,69,0.5); color: #9ff0b1; }
+    .mic-off { opacity: 0.7; }
+
+    .sys-on { background: rgba(74, 134, 232, 0.18); border-color: rgba(74,134,232,0.5); color: #bdd1ff; }
+    .sys-off { opacity: 0.7; }
+
+    .cam-on { background: rgba(156, 39, 176, 0.18); border-color: rgba(156,39,176,0.5); color: #e1bee7; }
+    .cam-off { opacity: 0.7; }
+
+  </style>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+  <div id="video-controls">
+    <div id="dragHandle" class="drag-handle" title="Drag" style="-webkit-app-region: drag;">≡</div>
+    <div class="btn-row">
+      <div class="icon-btn record" id="recordButton" title="Start Recording"><span class="material-icons">fiber_manual_record</span></div>
+      <div class="icon-btn stop" id="stopButton" title="Stop Recording" style="display: none;"><span class="material-icons">stop</span></div>
+      <div class="icon-btn sys-off" id="sysButton" title="System Audio (Speakers)" style="display: none;"><span class="material-icons" id="sysIcon">volume_off</span></div>
+      <div class="icon-btn mic-off" id="micButton" title="Microphone"><span class="material-icons" id="micIcon">mic_off</span></div>
+      <div class="icon-btn cam-off" id="camButton" title="Webcam Overlay"><span class="material-icons" id="camIcon">videocam_off</span></div>
+      <div class="icon-btn cancel" id="cancelButton" title="Cancel"><span class="material-icons">close</span></div>
+    </div>
+    <div class="status-indicator" id="statusIndicator">Ready</div>
+  </div>
+
+
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    const recordButton = document.getElementById('recordButton');
+    const stopButton = document.getElementById('stopButton');
+    const cancelButton = document.getElementById('cancelButton');
+    const sysButton = document.getElementById('sysButton');
+    const sysIcon = document.getElementById('sysIcon');
+    const micButton = document.getElementById('micButton');
+    const micIcon = document.getElementById('micIcon');
+    const camButton = document.getElementById('camButton');
+    const camIcon = document.getElementById('camIcon');
+    const statusIndicator = document.getElementById('statusIndicator');
+    
+    let mediaRecorder = null;
+    let currentQualityLevel = 'high'; // high, medium, low (default, no UI)
+    let recordedChunks = [];
+    let recordingStartTime = null;
+    let recordingTimer = null;
+    let currentProjectName = 'Default Project'; // Default, no UI
+    let isRecording = false;
+    let drawCroppedFrame = null; // Function to draw cropped frames
+    let lastThumbDataUrl = null; // Cached small PNG for screener thumbnail
+    let micStream = null;
+    let sysAudioStream = null;
+    let webcamStream = null;
+    let isCamEnabled = false;
+    let webcamPosition = 'bottom-right'; // bottom-right, bottom-left, top-right, top-left
+    let webcamSize = 0.20; // 20% of canvas size
+    
+    // Create webcam video element GLOBALLY (before recording) - HIDDEN, only for canvas drawing
+    const globalWebcamVideo = document.createElement('video');
+    globalWebcamVideo.id = 'webcamVideoElement';
+    globalWebcamVideo.style.display = 'none'; // Always hidden - we draw it to canvas
+    globalWebcamVideo.autoplay = true;
+    globalWebcamVideo.playsInline = true;
+    globalWebcamVideo.muted = true; // Mute to avoid feedback
+    document.body.appendChild(globalWebcamVideo);
+    window.webcamVideoElement = globalWebcamVideo;
+    let isMicEnabled = false;
+    let isSysEnabled = false;
+    
+    // Resize host window to fit the toolbar precisely
+    function resizeHostToToolbar() {
+      const el = document.getElementById('video-controls');
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const margin = 20; // safety to avoid clipping
+      const width = Math.ceil(rect.width + margin);
+      const height = Math.ceil(rect.height + margin);
+      ipcRenderer.send('resize-video-window', { width, height });
+    }
+
+    // Make video controls draggable with persistent position
+    const videoControls = document.getElementById('video-controls');
+    const dragHandle = document.getElementById('dragHandle');
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    function loadSavedPosition() {
+      try {
+        const saved = localStorage.getItem('tilbi-video-controls-pos');
+        if (saved) {
+          const pos = JSON.parse(saved);
+          if (typeof pos.x === 'number' && typeof pos.y === 'number') {
+            videoControls.style.left = Math.min(Math.max(0, pos.x), window.innerWidth - videoControls.offsetWidth) + 'px';
+            videoControls.style.top = Math.min(Math.max(0, pos.y), window.innerHeight - videoControls.offsetHeight) + 'px';
+          }
+        }
+      } catch (_) {}
+    }
+
+    function savePosition() {
+      try {
+        const x = videoControls.offsetLeft;
+        const y = videoControls.offsetTop;
+        localStorage.setItem('tilbi-video-controls-pos', JSON.stringify({ x, y }));
+      } catch (_) {}
+    }
+
+    function startDrag(e) {
+      if (e.target.closest && e.target.closest('.icon-btn')) return;
+      isDragging = true;
+      dragOffsetX = e.clientX - videoControls.offsetLeft;
+      dragOffsetY = e.clientY - videoControls.offsetTop;
+      e.preventDefault();
+    }
+
+    function onDrag(e) {
+      if (!isDragging) return;
+      const newX = e.clientX - dragOffsetX;
+      const newY = e.clientY - dragOffsetY;
+      const maxX = window.innerWidth - videoControls.offsetWidth;
+      const maxY = window.innerHeight - videoControls.offsetHeight;
+      videoControls.style.left = Math.max(0, Math.min(newX, maxX)) + 'px';
+      videoControls.style.top = Math.max(0, Math.min(newY, maxY)) + 'px';
+    }
+
+    function endDrag() {
+      if (!isDragging) return;
+      isDragging = false;
+      savePosition();
+    }
+
+    dragHandle.addEventListener('mousedown', startDrag);
+    videoControls.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', endDrag);
+    window.addEventListener('resize', loadSavedPosition);
+    setTimeout(loadSavedPosition, 0);
+
+    // Get user media for video recording using Electron's desktopCapturer
+    async function startVideoRecording() {
+      try {
+        // Get the bounds from the main process
+        const bounds = await ipcRenderer.invoke('get-video-bounds');
+        console.log('Video overlay received bounds:', bounds);
+        
+        // Get screen source info from main process
+        const sourceInfo = await ipcRenderer.invoke('get-screen-stream', bounds);
+        const captureDisplayBounds = (sourceInfo && sourceInfo.displayBounds)
+          ? sourceInfo.displayBounds
+          : { x: 0, y: 0, width: window.screen.width, height: window.screen.height };
+        const displayScaleFactor = (sourceInfo && sourceInfo.displayScaleFactor) ? sourceInfo.displayScaleFactor : (window.devicePixelRatio || 1);
+        
+        // Enhanced screen capture with higher quality constraints
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: sourceInfo.id,
+              maxWidth: 3840,    // Support up to 4K
+              maxHeight: 2160,   // Support up to 4K
+              minWidth: 1280,    // Minimum HD quality
+              minHeight: 720,    // Minimum HD quality
+              maxFrameRate: 60,  // Maximum frame rate
+              minFrameRate: 30   // Minimum frame rate for quality
+            }
+          }
+        });
+
+        // Quality settings based on user selection (declare early for use in canvas)
+        let videoBitrate, audioBitrate, frameRate;
+        switch(currentQualityLevel) {
+          case 'high':
+            videoBitrate = 25000000; // 25 Mbps for high quality
+            audioBitrate = 256000;   // 256 kbps audio
+            frameRate = 30;          // 30fps for high quality
+            break;
+          case 'medium':
+            videoBitrate = 15000000; // 15 Mbps for medium quality
+            audioBitrate = 192000;   // 192 kbps audio
+            frameRate = 30;          // 30fps for medium quality (smoother + lighter CPU)
+            break;
+          case 'low':
+            videoBitrate = 8000000;  // 8 Mbps for low quality
+            audioBitrate = 128000;   // 128 kbps audio
+            frameRate = 30;          // 30fps for low quality (reduce dropped frames)
+            break;
+          default:
+            videoBitrate = 15000000; // Default to medium
+            audioBitrate = 192000;
+            frameRate = 60;
+        }
+
+        // Create a canvas to crop the video to the selected area
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Enhanced quality scaling algorithm based on user selection
+        let maxWidth, maxHeight, minWidth, minHeight, maxScale;
+        switch(currentQualityLevel) {
+          case 'high':
+            maxWidth = 3840;  // 4K width
+            maxHeight = 2160; // 4K height
+            minWidth = 1920;  // Minimum HD width
+            minHeight = 1080; // Minimum HD height
+            maxScale = 4;     // Max 4x scale for high quality
+            break;
+          case 'medium':
+            maxWidth = 1920;  // HD width
+            maxHeight = 1080; // HD height
+            minWidth = 1280;  // Minimum HD width
+            minHeight = 720;  // Minimum HD height
+            maxScale = 3;     // Max 3x scale for medium quality
+            break;
+          case 'low':
+            maxWidth = 1280;  // 720p width
+            maxHeight = 720;  // 720p height
+            minWidth = 640;   // Minimum width
+            minHeight = 480;  // Minimum height
+            maxScale = 2;     // Max 2x scale for low quality
+            break;
+          default:
+            maxWidth = 1920;
+            maxHeight = 1080;
+            minWidth = 1280;
+            minHeight = 720;
+            maxScale = 3;
+        }
+        
+        // Calculate optimal scale to maintain quality while respecting limits
+        const scaleX = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
+        const scaleY = Math.max(minWidth / bounds.width, minHeight / bounds.height);
+        const scale = Math.max(1, Math.min(scaleX, scaleY, maxScale));
+        
+        // Ensure even pixel dimensions for better compression
+        canvas.width = Math.floor(bounds.width * scale);
+        canvas.height = Math.floor(bounds.height * scale);
+        
+        // Enable high-quality image smoothing with additional optimizations
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Additional canvas quality settings
+        ctx.textRenderingOptimization = 'optimizeQuality';
+        ctx.textBaseline = 'top';
+        
+        // Create a video element to capture frames
+        const videoElement = document.createElement('video');
+        videoElement.srcObject = stream;
+        videoElement.play();
+        
+        // Wait for video to be ready (with timeout for faster startup)
+        await Promise.race([
+          new Promise((resolve) => {
+            videoElement.onloadedmetadata = resolve;
+          }),
+          new Promise((resolve) => setTimeout(resolve, 50)) // Max 50ms wait for faster startup
+        ]);
+        
+        // Create a MediaStream from the canvas with adaptive frame rate
+        const canvasStream = canvas.captureStream(frameRate); // Match selected FPS (30 by default)
+        
+        // Determine if circular mask is requested
+        const isCircle = bounds && bounds.shape === 'circle';
+        
+        // Use the globally created webcam video element
+        const webcamVideo = window.webcamVideoElement || globalWebcamVideo;
+
+        // Function to draw cropped frames
+        drawCroppedFrame = function() {
+          if (isRecording) {
+            // Clear the canvas first
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate scale from screen to video element
+            const screenWidth = captureDisplayBounds.width;
+            const screenHeight = captureDisplayBounds.height;
+            const scaleX = videoElement.videoWidth / screenWidth;
+            const scaleY = videoElement.videoHeight / screenHeight;
+            
+            // Convert screen coordinates to video element coordinates
+            const videoX = (bounds.x - captureDisplayBounds.x) * scaleX;
+            const videoY = (bounds.y - captureDisplayBounds.y) * scaleY;
+            const videoW = bounds.width * scaleX;
+            const videoH = bounds.height * scaleY;
+            
+            // Simple direct drawing for performance
+            const srcX = Math.max(0, videoX);
+            const srcY = Math.max(0, videoY);
+            const srcW = Math.min(videoW, videoElement.videoWidth - srcX);
+            const srcH = Math.min(videoH, videoElement.videoHeight - srcY);
+            
+            // Enhanced drawing with quality optimizations
+            // Save context state for quality settings
+            ctx.save();
+            
+            // Apply high-quality rendering settings
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Draw with enhanced quality
+            ctx.drawImage(
+              videoElement,
+              srcX, srcY, srcW, srcH,
+              0, 0, canvas.width, canvas.height
+            );
+            
+            // Restore context state
+            ctx.restore();
+
+            // Draw webcam overlay if enabled
+            const webcamEl = window.webcamVideoElement || webcamVideo;
+            
+            // DEBUG: Log webcam status every 60 frames (once per second at 60fps)
+            if (Math.random() < 0.016) {
+              console.log('🎥 Webcam Status:', {
+                isCamEnabled,
+                hasStream: !!webcamStream,
+                hasElement: !!webcamEl,
+                readyState: webcamEl?.readyState,
+                videoWidth: webcamEl?.videoWidth,
+                videoHeight: webcamEl?.videoHeight,
+                willDraw: isCamEnabled && webcamStream && webcamEl && webcamEl.readyState >= 2
+              });
+            }
+            
+            if (isCamEnabled && webcamStream && webcamEl && webcamEl.readyState >= 2 && webcamEl.videoWidth > 0) {
+              try {
+                // Log first time drawing
+                if (Math.random() < 0.016) {
+                  console.log('✅ DRAWING WEBCAM TO CANVAS!');
+                }
+                
+                // Calculate webcam overlay size (rectangular, 16:9 aspect ratio)
+                const camWidth = Math.min(canvas.width, canvas.height) * webcamSize * 1.5; // Wider for 16:9
+                const camHeight = camWidth * (9/16); // 16:9 aspect ratio
+                const padding = 20; // Padding from edges
+                
+                // Calculate position based on webcamPosition
+                let camX, camY;
+                switch(webcamPosition) {
+                  case 'top-left':
+                    camX = padding;
+                    camY = padding;
+                    break;
+                  case 'top-right':
+                    camX = canvas.width - camWidth - padding;
+                    camY = padding;
+                    break;
+                  case 'bottom-left':
+                    camX = padding;
+                    camY = canvas.height - camHeight - padding;
+                    break;
+                  case 'bottom-right':
+                  default:
+                    camX = canvas.width - camWidth - padding;
+                    camY = canvas.height - camHeight - padding;
+                    break;
+                }
+                
+                // Draw shadow around webcam overlay (subtle outer glow)
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 2;
+                
+                // Draw webcam video with rectangle (shadow will appear around it)
+                ctx.fillStyle = '#000'; // Dummy fill for shadow to work
+                ctx.fillRect(camX, camY, camWidth, camHeight);
+                
+                // Reset shadow before drawing actual video
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+                
+                // Draw the actual webcam video on top
+                ctx.drawImage(
+                  webcamEl,
+                  camX, camY,
+                  camWidth, camHeight
+                );
+              } catch (e) {
+                console.warn('Webcam overlay draw error:', e);
+              }
+            }
+
+            if (isCircle) {
+              ctx.restore();
+            }
+            
+            // Schedule next frame draw synced to source frames when available
+            scheduleNextFrame();
+          }
+        };
+
+        // Prefer syncing to actual decoded frames for smoother pacing
+        function scheduleNextFrame() {
+          try {
+            if (typeof videoElement.requestVideoFrameCallback === 'function') {
+              videoElement.requestVideoFrameCallback(() => {
+                if (isRecording && drawCroppedFrame) drawCroppedFrame();
+              });
+            } else {
+              requestAnimationFrame(() => {
+                if (isRecording && drawCroppedFrame) drawCroppedFrame();
+              });
+            }
+          } catch (_) {
+            requestAnimationFrame(() => {
+              if (isRecording && drawCroppedFrame) drawCroppedFrame();
+            });
+          }
+        }
+
+        // Prepare recording stream: include mic audio if enabled
+        async function ensureMicStream() {
+          if (isMicEnabled && (!micStream || !micStream.getAudioTracks().length)) {
+            try {
+              micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                  sampleRate: 48000,
+                  channelCount: 2,
+                  echoCancellation: true,    // Enable to reduce echo
+                  noiseSuppression: true,    // Enable to reduce background noise
+                  autoGainControl: true      // Enable to prevent audio clipping
+                }
+              });
+            } catch (err) {
+              console.warn('Microphone access failed:', err);
+              isMicEnabled = false;
+              micButton.classList.remove('mic-on');
+              micButton.classList.add('mic-off');
+              micIcon.textContent = 'mic_off';
+            }
+          }
+        }
+
+        async function ensureSystemAudioStream() {
+          // SYSTEM AUDIO COMPLETELY DISABLED TO PREVENT IPC CRASHES
+          // The getUserMedia call for desktop audio sources causes IPC error 263
+          // TODO: Implement alternative system audio capture method
+          if (isSysEnabled) {
+            console.log('ensureSystemAudioStream: System audio UI enabled but capture is disabled');
+            console.log('ensureSystemAudioStream: This prevents IPC error 263 crashes');
+            sysAudioStream = null;
+          }
+        }
+
+        await ensureMicStream();
+        
+        // Wrap system audio in extra error protection to prevent IPC crashes
+        try {
+          await ensureSystemAudioStream();
+        } catch (error) {
+          console.error('System audio setup failed completely, continuing without it:', error);
+          sysAudioStream = null;
+          isSysEnabled = false;
+        }
+
+        const combinedStream = new MediaStream();
+        const videoTrack = canvasStream.getVideoTracks()[0];
+        if (!videoTrack) {
+          statusIndicator.textContent = 'Error: No video track';
+          return;
+        }
+        combinedStream.addTrack(videoTrack);
+        
+        // Safely add audio tracks without breaking video recording
+        try {
+          if (isSysEnabled && sysAudioStream && sysAudioStream.getAudioTracks().length) {
+            console.log('Adding system audio track to recording');
+            combinedStream.addTrack(sysAudioStream.getAudioTracks()[0]);
+          } else if (isMicEnabled && micStream && micStream.getAudioTracks().length) {
+            console.log('Adding microphone track to recording');
+            combinedStream.addTrack(micStream.getAudioTracks()[0]);
+          } else {
+            console.log('No audio tracks available, recording video only');
+          }
+        } catch (e) { 
+          console.warn('Audio attach failed, continuing with video only:', e);
+          // Reset audio states if they failed
+          isSysEnabled = false;
+          isMicEnabled = false;
+          if (sysButton) {
+            sysButton.classList.remove('sys-on');
+            sysButton.classList.add('sys-off');
+          }
+          micButton.classList.remove('mic-on');
+          micButton.classList.add('mic-off');
+        }
+
+        // Create MediaRecorder with user-selected quality settings
+        const canvasArea = canvas.width * canvas.height;
+        
+        // Prefer a lighter encoder first for smoother real-time encoding
+        try {
+          mediaRecorder = new MediaRecorder(combinedStream, {
+            mimeType: 'video/webm;codecs=vp8',
+            videoBitsPerSecond: Math.floor(videoBitrate * 0.8),
+            audioBitsPerSecond: audioBitrate
+          });
+          console.log(`✅ VP8 recording: ${Math.floor(videoBitrate*0.8)/1000000}Mbps video, ${audioBitrate/1000}kbps audio, ${frameRate}fps`);
+        } catch (err) {
+          try {
+            mediaRecorder = new MediaRecorder(combinedStream, {
+              mimeType: 'video/webm;codecs=vp9',
+              videoBitsPerSecond: videoBitrate,
+              audioBitsPerSecond: audioBitrate
+            });
+            console.log(`✅ VP9 recording: ${videoBitrate/1000000}Mbps video, ${audioBitrate/1000}kbps audio, ${frameRate}fps`);
+          } catch (err2) {
+            console.warn('MediaRecorder init failed, using default settings:', err2);
+            mediaRecorder = new MediaRecorder(combinedStream);
+          }
+        }
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          
+          // Convert blob to base64 for transmission
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64Data = reader.result;
+            
+            // Create a PNG thumbnail from the current canvas contents
+            let thumbnailPng = lastThumbDataUrl;
+            if (!thumbnailPng) {
+              try {
+                const thumbCanvas = document.createElement('canvas');
+                const tctx = thumbCanvas.getContext('2d');
+                const targetW = 320;
+                const targetH = Math.max(1, Math.round((canvas.height / canvas.width) * 320));
+                thumbCanvas.width = targetW;
+                thumbCanvas.height = targetH;
+                tctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, targetW, targetH);
+                thumbnailPng = thumbCanvas.toDataURL('image/png');
+              } catch (e) {
+                console.warn('Thumbnail creation failed', e);
+              }
+            }
+            
+            // Send video data to main process with optional thumbnail
+            ipcRenderer.send('save-video-recording', {
+              videoData: base64Data,
+              duration: Date.now() - recordingStartTime,
+              thumbnailPng
+            });
+          };
+          reader.readAsDataURL(blob);
+          
+          // Clean up
+          recordedChunks = [];
+          stream.getTracks().forEach(track => track.stop());
+          lastThumbDataUrl = null;
+        };
+
+        // Start recording
+        try { 
+          mediaRecorder.start(200); // Larger timeslice to reduce encoder overhead
+        } catch (e) { 
+          statusIndicator.textContent = 'Record failed'; 
+          console.error(e); 
+          return; 
+        }
+        isRecording = true;
+        recordingStartTime = Date.now();
+        
+        // Start drawing cropped frames immediately
+        scheduleNextFrame();
+        
+        // Update UI
+        recordButton.style.display = 'none';
+        stopButton.style.display = 'inline-flex';
+        statusIndicator.textContent = 'Recording... 00:00';
+        statusIndicator.classList.add('recording-status');
+        
+        // Start timer
+        startRecordingTimer();
+        
+      } catch (error) {
+        console.error('Error starting video recording:', error);
+        statusIndicator.textContent = 'Error: ' + error.message;
+        statusIndicator.style.background = 'rgba(231, 76, 60, 0.8)';
+      }
+    }
+
+    function stopVideoRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        
+        // Stop drawing cropped frames
+        drawCroppedFrame = null;
+        
+        // Update UI
+        recordButton.style.display = 'inline-flex';
+        stopButton.style.display = 'none';
+        statusIndicator.textContent = 'Processing video...';
+        statusIndicator.classList.remove('recording-status');
+        
+        // Stop timer
+        if (recordingTimer) {
+          clearInterval(recordingTimer);
+          recordingTimer = null;
+        }
+
+        // Clean up mic and system audio streams (but keep webcam for next recording if enabled)
+        try {
+          if (micStream) {
+            micStream.getTracks().forEach(t => t.stop());
+            micStream = null;
+          }
+          if (sysAudioStream) {
+            sysAudioStream.getTracks().forEach(t => t.stop());
+            sysAudioStream = null;
+          }
+          // Keep webcam stream alive if still enabled for quick next recording
+          // User can manually turn it off with the button
+        } catch (_) {}
+        
+        // Force close selection window immediately
+        ipcRenderer.send('force-close-selection-window');
+      }
+    }
+
+    function startRecordingTimer() {
+      recordingTimer = setInterval(() => {
+        if (isRecording && recordingStartTime) {
+          const elapsed = Date.now() - recordingStartTime;
+          const seconds = Math.floor(elapsed / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const timeString = `${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+          statusIndicator.innerHTML = `Recording... <span class="recording-timer">${timeString}</span>`;
+        }
+      }, 1000);
+    }
+
+    function cancelRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+      }
+      
+      if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+      }
+      
+      // Clean up and close
+      ipcRenderer.send('cancel-video-recording');
+    }
+
+    // Event listeners
+    recordButton.addEventListener('click', startVideoRecording);
+    stopButton.addEventListener('click', stopVideoRecording);
+    cancelButton.addEventListener('click', cancelRecording);
+
+    // Load saved quality setting (no UI, just use saved value)
+    function loadCurrentQuality() {
+      try {
+        const savedQuality = localStorage.getItem('video-quality') || 'high';
+        currentQualityLevel = savedQuality;
+      } catch (e) {
+        console.error('Error loading quality setting:', e);
+        currentQualityLevel = 'high'; // Default to high quality
+      }
+    }
+
+    // Load current project (no UI, just use saved value)
+    function loadCurrentProject() {
+      try {
+        const savedProject = localStorage.getItem('current-project');
+        if (savedProject) {
+          currentProjectName = savedProject;
+        }
+      } catch (e) {
+        console.error('Error loading current project:', e);
+      }
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCurrentProject();
+      loadCurrentQuality();
+    });
+
+    // Microphone toggle
+    micButton.addEventListener('click', async () => {
+      isMicEnabled = !isMicEnabled;
+      if (isMicEnabled) {
+        micButton.classList.add('mic-on');
+        micButton.classList.remove('mic-off');
+        micIcon.textContent = 'mic';
+        statusIndicator.textContent = 'Mic ON';
+        try {
+          if (!micStream) {
+            micStream = await navigator.mediaDevices.getUserMedia({ 
+              audio: {
+                echoCancellation: true,    // Reduce echo
+                noiseSuppression: true,    // Reduce background noise  
+                autoGainControl: true      // Prevent clipping
+              }
+            });
+          }
+        } catch (e) {
+          isMicEnabled = false;
+          micButton.classList.remove('mic-on');
+          micButton.classList.add('mic-off');
+          micIcon.textContent = 'mic_off';
+          statusIndicator.textContent = 'Mic permission denied';
+        }
+      } else {
+        micButton.classList.remove('mic-on');
+        micButton.classList.add('mic-off');
+        micIcon.textContent = 'mic_off';
+        statusIndicator.textContent = 'Mic OFF';
+        if (micStream) {
+          try { micStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+          micStream = null;
+        }
+      }
+    });
+
+    // System audio toggle - SAFE VERSION THAT DOESN'T CRASH (hidden but functional)
+    if (sysButton) {
+      sysButton.addEventListener('click', () => {
+        console.log('System audio button clicked');
+        
+        isSysEnabled = !isSysEnabled;
+        
+        if (isSysEnabled) {
+          sysButton.classList.add('sys-on');
+          sysButton.classList.remove('sys-off');
+          sysIcon.textContent = 'volume_up';
+          statusIndicator.textContent = 'System Audio: Not Available';
+          console.log('System audio UI enabled but capture disabled to prevent crashes');
+        } else {
+          sysButton.classList.remove('sys-on');
+          sysButton.classList.add('sys-off');
+          sysIcon.textContent = 'volume_off';
+          statusIndicator.textContent = 'System Audio OFF';
+          console.log('System audio disabled');
+          // Clean up any existing stream
+          if (sysAudioStream) {
+            try { sysAudioStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+            sysAudioStream = null;
+          }
+        }
+        
+        // Reset status after 1 second
+        setTimeout(() => {
+          if (statusIndicator.textContent.includes('System Audio')) {
+            statusIndicator.textContent = 'Ready';
+          }
+        }, 1000);
+      });
+    }
+
+    // Webcam toggle - can be toggled anytime (before or during recording)
+    camButton.addEventListener('click', async () => {
+      isCamEnabled = !isCamEnabled;
+      if (isCamEnabled) {
+        camButton.classList.add('cam-on');
+        camButton.classList.remove('cam-off');
+        camIcon.textContent = 'videocam';
+        if (!isRecording) {
+          statusIndicator.textContent = 'Webcam ON';
+        }
+        try {
+          if (!webcamStream) {
+            webcamStream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+              },
+              audio: false
+            });
+            const webcamVideo = window.webcamVideoElement || document.getElementById('webcamVideoElement');
+            if (webcamVideo) {
+              webcamVideo.srcObject = webcamStream;
+              // Keep hidden - we draw it to the recording canvas, not show it separately
+              await webcamVideo.play();
+              console.log('✅ Webcam stream started, video ready:', webcamVideo.readyState);
+              console.log('✅ Webcam dimensions:', webcamVideo.videoWidth, 'x', webcamVideo.videoHeight);
+            } else {
+              console.error('❌ Webcam video element not found!');
+            }
+          }
+          if (!isRecording) {
+            setTimeout(() => {
+              if (statusIndicator.textContent === 'Webcam ON') {
+                statusIndicator.textContent = 'Ready';
+              }
+            }, 1000);
+          }
+        } catch (e) {
+          isCamEnabled = false;
+          camButton.classList.remove('cam-on');
+          camButton.classList.add('cam-off');
+          camIcon.textContent = 'videocam_off';
+          if (!isRecording) {
+            statusIndicator.textContent = 'Webcam permission denied';
+          }
+          console.error('Webcam access failed:', e);
+          setTimeout(() => {
+            if (!isRecording && statusIndicator.textContent.includes('Webcam')) {
+              statusIndicator.textContent = 'Ready';
+            }
+          }, 2000);
+        }
+      } else {
+        camButton.classList.remove('cam-on');
+        camButton.classList.add('cam-off');
+        camIcon.textContent = 'videocam_off';
+        if (!isRecording) {
+          statusIndicator.textContent = 'Webcam OFF';
+        }
+        // Just disable - video stays hidden, won't be drawn to canvas
+        if (!isRecording) {
+          setTimeout(() => {
+            if (statusIndicator.textContent === 'Webcam OFF') {
+              statusIndicator.textContent = 'Ready';
+            }
+          }, 1000);
+        }
+      }
+    });
+
+    // Recompute size when UI changes
+    new MutationObserver(() => resizeHostToToolbar()).observe(document.getElementById('video-controls'), { childList: true, attributes: true, subtree: true });
+    window.addEventListener('load', resizeHostToToolbar);
+    window.addEventListener('resize', resizeHostToToolbar);
+
+    // Handle Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        cancelRecording();
+      }
+    });
+
+    // Handle stop command from selection window
+    ipcRenderer.on('stop-recording-command', () => {
+      stopVideoRecording();
+    });
+
+    // Prevent context menu and text selection
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('selectstart', e => e.preventDefault());
+
+    // Global error handler to prevent interface from disappearing
+    window.addEventListener('error', (e) => {
+      console.error('Global error caught:', e.error);
+      // Don't let errors break the video interface
+      e.preventDefault();
+      return false;
+    });
+
+    // Handle unhandled promise rejections
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      // Don't let promise rejections break the video interface
+      e.preventDefault();
+      return false;
+    });
+  </script>
+</body>
+</html>

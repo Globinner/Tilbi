@@ -1,0 +1,86 @@
+{
+  "name": "tilbi",
+  "version": "1.0.0",
+  "description": "Tilbi clipboard manager",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64 --dir --config.win.sign=false --config.win.target=dir --config.compression=store --config.asar=true && node embed-icon.js",
+    "build-installer": "electron-builder --win --x64 --publish=never",
+    "build-portable": "electron-builder --win --x64 --publish=never --config.win.target=portable",
+    "publish": "electron-builder --win --x64 --publish=always",
+    "selftest:win": "cross-env CM_SELFTEST=1 electron .",
+    "factory-reset": "cross-env CM_FACTORY_RESET=1 electron ."
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.1.7",
+    "googleapis": "^128.0.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
+    "rcedit": "^5.0.2"
+  },
+  "build": {
+    "appId": "com.tilbi.app",
+    "productName": "Tilbi",
+    "directories": {
+      "output": "dist"
+    },
+    "extraMetadata": {
+      "main": "index.js"
+    },
+    "files": [
+      "**/*",
+      "!dist/**/*",
+      "!**/*.{md,txt,bat,iss,log}",
+      "!**/.git/**/*",
+      "!**/.vscode/**/*",
+      "!node_modules/.bin/**/*",
+      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!node_modules/*.d.ts"
+    ],
+    "asar": true,
+    "asarUnpack": [],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/icon.ico",
+      "sign": null,
+      "signingHashAlgorithms": [],
+      "extraResources": [
+        {
+          "from": "icons/icon.ico",
+          "to": "icons/icon.ico"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "differentialPackage": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Globinner",
+      "repo": "Tilbi"
+    }
+  }
+}

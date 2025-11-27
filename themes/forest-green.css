@@ -1,0 +1,216 @@
+/* ========================================
+   FOREST GREEN THEME - Clean & Simple
+   ======================================== */
+
+/* === MAIN BACKGROUND === */
+body[data-theme="forest-green"] {
+  background-color: #312C51 !important;
+  color: #F6F4FF !important;
+}
+
+body[data-theme="forest-green"].loginner-active,
+body[data-theme="forest-green"].screener-active {
+  background-color: #312C51 !important;
+}
+
+/* === HEADER & TABS === */
+body[data-theme="forest-green"] .header {
+  background-color: #312C51 !important;
+  border-bottom: none !important;
+}
+
+body[data-theme="forest-green"] .tabs {
+  background-color: #312C51 !important;
+  border-bottom: none !important;
+}
+
+body[data-theme="forest-green"] .tab {
+  color: #4a86e8 !important;
+}
+
+body[data-theme="forest-green"] .tab:hover {
+  background-color: #48426D !important;
+  color: #60a5fa !important;
+}
+
+body[data-theme="forest-green"] .tab.active {
+  background-color: #48426D !important;
+  color: #60a5fa !important;
+  border-bottom: 2px solid #4a86e8 !important;
+}
+
+/* === SEARCH BAR === */
+body[data-theme="forest-green"] .search-bar {
+  background-color: #312C51 !important;
+  border-bottom: none !important;
+}
+
+body[data-theme="forest-green"] .search-bar input {
+  background-color: #48426D !important;
+  border-color: #C8A27D !important;
+  color: #F6F4FF !important;
+}
+
+/* === FOOTER === */
+body[data-theme="forest-green"] .footer {
+  background-color: #312C51 !important;
+  color: #F6F4FF !important;
+  border-top: none !important;
+}
+
+/* === MAIN TABS (History, Pinned, Screener) === */
+body[data-theme="forest-green"] #history-tab,
+body[data-theme="forest-green"] #pinned-tab,
+body[data-theme="forest-green"] #screenerTab {
+  background: #312C51 !important;
+  color: #F6F4FF !important;
+}
+
+body[data-theme="forest-green"] #history-tab .clip-item:hover,
+body[data-theme="forest-green"] #pinned-tab .clip-item:hover,
+body[data-theme="forest-green"] #screenerTab .clip-item:hover {
+  background-color: transparent !important;
+}
+
+/* === LOGINNER TAB - General Styling === */
+body[data-theme="forest-green"] #loginner-tab {
+  background: #312C51 !important;
+  color: #F6F4FF !important;
+}
+
+body[data-theme="forest-green"] #loginner-tab h1,
+body[data-theme="forest-green"] #loginner-tab h2,
+body[data-theme="forest-green"] #loginner-tab h3,
+body[data-theme="forest-green"] #loginner-tab h4,
+body[data-theme="forest-green"] #loginner-tab h5,
+body[data-theme="forest-green"] #loginner-tab h6,
+body[data-theme="forest-green"] #loginner-tab p,
+body[data-theme="forest-green"] #loginner-tab span,
+body[data-theme="forest-green"] #loginner-tab label {
+  color: #ffffff !important;
+}
+
+/* Icons: Light Brown */
+body[data-theme="forest-green"] #loginner-tab .material-icons {
+  color: #C8A27D !important;
+}
+
+/* === LOGINNER LOGS - PURPLE BACKGROUND === */
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-card {
+  background: #6d28d9 !important; /* PURPLE BACKGROUND */
+  border: 1px solid rgba(200,162,125,0.3) !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  margin-bottom: 12px !important;
+}
+
+/* === LOG TEXT - BEIGE LETTERS === */
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-card-title,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-card-description,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-card-meta,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-money-label,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-money-description {
+  color: #C8A27D !important; /* BEIGE LETTERS */
+}
+
+/* === LOG NUMBERS & LINES - WHITE === */
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-date,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-time,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-duration,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-money-amount,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-spacer,
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .log-connector {
+  color: #ffffff !important; /* WHITE NUMBERS AND LINES */
+}
+
+/* === LOG ICONS - BEIGE === */
+body[data-theme="forest-green"] #loginner-tab #loginner-sessions-list .material-icons {
+  color: #C8A27D !important; /* BEIGE ICONS */
+}
+
+/* === INCOME/OUTCOME Colors === */
+body[data-theme="forest-green"] #loginner-tab .log-money-income,
+body[data-theme="forest-green"] #loginner-tab .log-money-income * {
+  color: #22c55e !important; /* Green for income */
+}
+
+body[data-theme="forest-green"] #loginner-tab .log-money-outcome,
+body[data-theme="forest-green"] #loginner-tab .log-money-outcome * {
+  color: #ef4444 !important; /* Red for outcome */
+}
+
+/* === PLANNER TAB === */
+body[data-theme="forest-green"] #planner-tab {
+  background: #312C51 !important;
+  color: #F6F4FF !important;
+}
+
+body[data-theme="forest-green"] .planner-card,
+body[data-theme="forest-green"] .planner-calendar,
+body[data-theme="forest-green"] .planner-sidebar .planner-card {
+  background: transparent !important;
+  border-color: rgba(200,162,125,0.4) !important;
+  color: #F6F4FF !important;
+}
+
+body[data-theme="forest-green"] .planner-day {
+  background: #312C51 !important;
+  color: #F6F4FF !important;
+}
+
+body[data-theme="forest-green"] .planner-day-dot {
+  background: #C8A27D !important;
+}
+
+body[data-theme="forest-green"] .planner-card-header .material-icons,
+body[data-theme="forest-green"] .planner-list-item .material-icons {
+  color: #60a5fa !important;
+}
+
+/* === TOTALS === */
+/* Labels: WHITE (handled in popup.html) */
+/* Numbers: Colored values only */
+body[data-theme="forest-green"] #loginner-total-income-value {
+  color: #22c55e !important; /* Green for income number */
+}
+
+body[data-theme="forest-green"] #loginner-total-outcome-value {
+  color: #ef4444 !important; /* Red for outcome number */
+}
+
+body[data-theme="forest-green"] #loginner-total-profit-value {
+  color: #16a34a !important; /* Green for profit number */
+}
+
+/* === SETTINGS BUTTON === */
+body[data-theme="forest-green"] #loginner-settings-btn .material-icons {
+  color: #C8A27D !important;
+}
+
+/* === TRANSACTION CHART === */
+body[data-theme="forest-green"] #transactions-line-chart {
+  background: #48426D !important;
+}
+
+/* Chart title */
+body[data-theme="forest-green"] [style*="Transaction Trends"] {
+  color: #C8A27D !important;
+}
+
+/* Chart view toggle buttons */
+body[data-theme="forest-green"] #chart-view-days,
+body[data-theme="forest-green"] #chart-view-months {
+  color: #C8A27D !important;
+}
+
+body[data-theme="forest-green"] #chart-view-days[style*="background: #4a86e8"],
+body[data-theme="forest-green"] #chart-view-months[style*="background: #4a86e8"] {
+  background: #8b5cf6 !important;
+  color: #ffffff !important;
+}
+
+/* Chart legend text */
+body[data-theme="forest-green"] #loginner-tab [style*="justify-content: center"] span[style*="color: #666"] {
+  color: #C8A27D !important;
+}
+
