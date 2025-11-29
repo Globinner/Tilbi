@@ -10575,8 +10575,9 @@ searchInput.disabled = true;
                  </div>
                  
                  <div id="gdrive-auth-section" style="display: none; width: 100%; box-sizing: border-box;">
-              <input type="text" id="gdrive-client-id" placeholder="Google Client ID" class="settings-input" style="background: white; color: #000; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px; width: 100%; box-sizing: border-box; font-size: 14px; height: 45px; margin-bottom: 8px;">
-              <input type="text" id="gdrive-client-secret" placeholder="Google Client Secret" class="settings-input" style="background: white; color: #000; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px; width: 100%; box-sizing: border-box; font-size: 14px; height: 45px; margin-bottom: 8px;">
+                   <!-- Credentials hidden from users - pre-configured -->
+                   <input type="hidden" id="gdrive-client-id">
+                   <input type="hidden" id="gdrive-client-secret">
                    <button id="gdrive-connect-btn" onclick="connectGoogleDrive()" style="background: #28a745; color: white; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; font-size: 14px; width: 100%; height: 45px; font-weight: 500; display: flex; align-items: center; justify-content: center;">🔗 Connect Google Drive</button>
                  </div>
                  
@@ -10601,6 +10602,44 @@ searchInput.disabled = true;
                    <div id="gdrive-last-sync" style="color: white; font-size: 12px; opacity: 0.8; margin-top: 8px; text-align: center;">
                      Last sync: Never
                    </div>
+                 </div>
+              </div>
+            </div>
+            
+            <!-- Google Calendar Sync Section -->
+            <div style="margin-bottom: 12px; border: 1px solid rgba(102,126,234,0.5); border-radius: 10px; padding: 10px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);">
+              <div style="color: white; font-weight: bold; margin-bottom: 8px; font-size: 14px;">📅 Google Calendar Sync</div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                 <label style="display: flex; align-items: center; gap: 8px; color: white; font-size: 14px;">
+                   <input type="checkbox" id="gcal-enable-checkbox" onchange="toggleGoogleCalendarSync(this.checked)" style="transform: scale(1.2);"> Sync planner with Google Calendar
+                 </label>
+                 
+                 <div style="color: white; font-size: 12px; opacity: 0.9; margin-top: 4px; margin-bottom: 8px;">
+                   🔗 Your planner tasks and reminders sync with Google Calendar
+                 </div>
+                 
+                 <div id="gcal-auth-section" style="display: none; width: 100%; box-sizing: border-box;">
+                   <input type="hidden" id="gcal-client-id">
+                   <input type="hidden" id="gcal-client-secret">
+                   <button id="gcal-connect-btn" onclick="connectGoogleCalendar()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; font-size: 14px; width: 100%; height: 45px; font-weight: 500; display: flex; align-items: center; justify-content: center;">📅 Connect Google Calendar</button>
+                 </div>
+                 
+                 <div id="gcal-status-section" style="display: none;">
+                   <div style="display: flex; align-items: center; gap: 8px; color: white; font-size: 14px; padding: 10px; background: rgba(40, 167, 69, 0.2); border-radius: 4px; margin-bottom: 8px;">
+                     <span style="color: #28a745; font-size: 18px;">✓</span>
+                     <span>Connected to Google Calendar</span>
+                   </div>
+                   <div style="display: flex; align-items: center; gap: 8px; color: white; font-size: 14px; margin-bottom: 8px;">
+                     <span>Sync Interval:</span>
+                     <select id="gcal-sync-interval" onchange="updateGoogleCalendarSyncInterval(this.value)" style="background: white; color: #000; border: 2px solid #667eea; border-radius: 8px; padding: 8px; font-size: 14px;">
+                       <option value="5">5 min</option>
+                       <option value="15">15 min</option>
+                       <option value="30" selected>30 min</option>
+                       <option value="60">1 hour</option>
+                     </select>
+                   </div>
+                   <button onclick="manualGoogleCalendarSync()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-size: 13px; width: 100%;">🔄 Sync Now</button>
+                   <div id="gcal-last-sync" style="color: white; font-size: 11px; opacity: 0.7; margin-top: 6px; text-align: center;">Last sync: Never</div>
                  </div>
               </div>
             </div>
@@ -10917,6 +10956,7 @@ searchInput.disabled = true;
       // Initialize Google Drive UI state
       setTimeout(() => {
         initializeGoogleDriveUI();
+        initializeGoogleCalendarUI();
       }, 150);
     }
     
@@ -11137,6 +11177,111 @@ searchInput.disabled = true;
       
       alert('✓ Disconnected from Google Drive');
     }
+    
+    // Google Calendar Functions
+    function initializeGoogleCalendarUI() {
+      const enableCheckbox = document.getElementById('gcal-enable-checkbox');
+      const authSection = document.getElementById('gcal-auth-section');
+      const statusSection = document.getElementById('gcal-status-section');
+      
+      const gcalEnabled = localStorage.getItem('gcal-enabled') === 'true';
+      const gcalConnected = localStorage.getItem('gcal-connected') === 'true';
+      const clientId = localStorage.getItem('gdrive-client-id') || '694879890435-vob9oi9t8l4kqps9k3oa0qb91q25umho.apps.googleusercontent.com';
+      const clientSecret = localStorage.getItem('gdrive-client-secret') || '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';
+      
+      // Pre-fill hidden credentials (reuse Google Drive credentials)
+      const clientIdInput = document.getElementById('gcal-client-id');
+      const clientSecretInput = document.getElementById('gcal-client-secret');
+      if (clientIdInput) clientIdInput.value = clientId;
+      if (clientSecretInput) clientSecretInput.value = clientSecret;
+      
+      if (enableCheckbox) enableCheckbox.checked = gcalEnabled;
+      
+      if (gcalConnected && gcalEnabled) {
+        if (authSection) authSection.style.display = 'none';
+        if (statusSection) statusSection.style.display = 'block';
+      } else if (gcalEnabled) {
+        if (authSection) authSection.style.display = 'block';
+        if (statusSection) statusSection.style.display = 'none';
+      } else {
+        if (authSection) authSection.style.display = 'none';
+        if (statusSection) statusSection.style.display = 'none';
+      }
+    }
+    
+    function toggleGoogleCalendarSync(enabled) {
+      localStorage.setItem('gcal-enabled', enabled.toString());
+      const authSection = document.getElementById('gcal-auth-section');
+      const statusSection = document.getElementById('gcal-status-section');
+      const gcalConnected = localStorage.getItem('gcal-connected') === 'true';
+      
+      if (enabled) {
+        if (gcalConnected) {
+          if (authSection) authSection.style.display = 'none';
+          if (statusSection) statusSection.style.display = 'block';
+        } else {
+          if (authSection) authSection.style.display = 'block';
+          if (statusSection) statusSection.style.display = 'none';
+        }
+      } else {
+        if (authSection) authSection.style.display = 'none';
+        if (statusSection) statusSection.style.display = 'none';
+      }
+    }
+    
+    async function connectGoogleCalendar() {
+      const clientId = localStorage.getItem('gdrive-client-id') || '694879890435-vob9oi9t8l4kqps9k3oa0qb91q25umho.apps.googleusercontent.com';
+      const clientSecret = localStorage.getItem('gdrive-client-secret') || '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';
+      const connectBtn = document.getElementById('gcal-connect-btn');
+      
+      if (connectBtn) {
+        connectBtn.innerHTML = '⏳ Connecting...';
+        connectBtn.disabled = true;
+      }
+      
+      try {
+        const result = await window.ipcRenderer.invoke('gcal-connect', { clientId, clientSecret });
+        
+        if (result.success) {
+          localStorage.setItem('gcal-connected', 'true');
+          
+          const authSection = document.getElementById('gcal-auth-section');
+          const statusSection = document.getElementById('gcal-status-section');
+          
+          if (authSection) authSection.style.display = 'none';
+          if (statusSection) statusSection.style.display = 'block';
+          
+          alert('✓ Successfully connected to Google Calendar!');
+        } else {
+          throw new Error(result.error || 'Connection failed');
+        }
+      } catch (error) {
+        console.error('Google Calendar connection error:', error);
+        alert('Failed to connect to Google Calendar: ' + error.message);
+        
+        if (connectBtn) {
+          connectBtn.innerHTML = '📅 Connect Google Calendar';
+          connectBtn.disabled = false;
+        }
+      }
+    }
+    
+    async function manualGoogleCalendarSync() {
+      try {
+        const result = await window.ipcRenderer.invoke('gcal-sync');
+        if (result.success) {
+          const lastSyncDiv = document.getElementById('gcal-last-sync');
+          if (lastSyncDiv) lastSyncDiv.textContent = 'Last sync: Just now';
+        }
+      } catch (error) {
+        console.error('Google Calendar sync error:', error);
+      }
+    }
+    
+    function updateGoogleCalendarSyncInterval(interval) {
+      localStorage.setItem('gcal-sync-interval', interval);
+    }
+
     function addNewProject() {
       try {
         // PREVENT WHITE OVERLAY - ensure modals are properly closed
