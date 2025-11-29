@@ -31,3 +31,4 @@ echo  BUILD UPDATED - Now compile with Inno Setup
 echo ========================================
 pause
 
+

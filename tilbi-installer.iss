@@ -53,6 +53,17 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 Source: "dist\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Include icon file explicitly for shortcuts
 Source: "icons\icon.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
+; CRITICAL: Include source files directly to ensure latest version (overwrites dist files)
+Source: "popup.html"; DestDir: "{app}\resources\app"; Flags: ignoreversion
+Source: "index.js"; DestDir: "{app}\resources\app"; Flags: ignoreversion
+Source: "subscription.js"; DestDir: "{app}\resources\app"; Flags: ignoreversion
+Source: "package.json"; DestDir: "{app}\resources\app"; Flags: ignoreversion
+Source: "*.js"; DestDir: "{app}\resources\app"; Flags: ignoreversion
+Source: "fonts\*"; DestDir: "{app}\resources\app\fonts"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "icons\*"; DestDir: "{app}\resources\app\icons"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "*.html"; DestDir: "{app}\resources\app"; Flags: ignoreversion
+Source: "*.mp3"; DestDir: "{app}\resources\app"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "*.wav"; DestDir: "{app}\resources\app"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icons\icon.ico"

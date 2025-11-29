@@ -28,6 +28,56 @@
       -webkit-font-smoothing: antialiased;
     }
   </style>
+  <script>
+    // Wait for Material Icons font to load before showing content
+    (function() {
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function() {
+          document.documentElement.classList.add('fonts-loaded');
+        });
+      } else {
+        setTimeout(function() {
+          document.documentElement.classList.add('fonts-loaded');
+        }, 100);
+      }
+    })();
+  </script>
+  <style>
+    /* CRITICAL: Hide material icon text until font loads to prevent showing icon names */
+    html:not(.fonts-loaded) .material-icons,
+    html:not(.fonts-loaded) .material-icons-outlined,
+    html:not(.fonts-loaded) .material-symbols-outlined {
+      color: transparent !important;
+      visibility: hidden !important;
+    }
+    
+    /* Show icons after font is loaded */
+    html.fonts-loaded .material-icons,
+    html.fonts-loaded .material-icons-outlined,
+    html.fonts-loaded .material-symbols-outlined {
+      visibility: visible !important;
+    }
+    
+    /* Ensure Material Icons use the font, not text fallback */
+    .material-icons,
+    .material-icons-outlined,
+    .material-symbols-outlined {
+      font-family: 'Material Icons' !important;
+      font-weight: normal !important;
+      font-style: normal !important;
+      display: inline-block !important;
+      line-height: 1 !important;
+      text-transform: none !important;
+      letter-spacing: normal !important;
+      word-wrap: normal !important;
+      white-space: nowrap !important;
+      direction: ltr !important;
+      -webkit-font-smoothing: antialiased !important;
+      text-rendering: optimizeLegibility !important;
+      -moz-osx-font-smoothing: grayscale !important;
+      font-feature-settings: 'liga' !important;
+    }
+  </style>
   <style>
     /* VERSION: 2024-11-20-PURPLE-FIX - Force cache refresh */
     /* Global - Hide ALL scrollbars everywhere */
