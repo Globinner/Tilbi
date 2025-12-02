@@ -445,6 +445,58 @@
     body[data-theme="forest-green"] #loginner-tab .log-card-money .log-money-outcome .log-money-amount {
       color: #dc2626 !important;
     }
+    
+    /* Forest Green Theme - Settings Modal Input Fields - Make text visible */
+    body[data-theme="forest-green"] #loginner-settings-content input,
+    body[data-theme="forest-green"] #loginner-settings-content input[type="text"],
+    body[data-theme="forest-green"] #loginner-settings-content input[type="number"],
+    body[data-theme="forest-green"] #new-project-name,
+    body[data-theme="forest-green"] #settings-project-select,
+    body[data-theme="forest-green"] #new-project-hours,
+    body[data-theme="forest-green"] #new-project-value,
+    body[data-theme="forest-green"] #loginner-settings-content input.settings-input {
+      color: #000000 !important;
+      background: #ffffff !important;
+    }
+    body[data-theme="forest-green"] #loginner-settings-content input::placeholder,
+    body[data-theme="forest-green"] #new-project-name::placeholder,
+    body[data-theme="forest-green"] #loginner-settings-content input.settings-input::placeholder {
+      color: #666666 !important;
+      opacity: 1 !important;
+    }
+    body[data-theme="forest-green"] #loginner-settings-content select,
+    body[data-theme="forest-green"] #settings-project-select {
+      color: #000000 !important;
+      background: #ffffff !important;
+    }
+    /* Forest Green Theme - Select dropdown options - Make text visible when dropdown opens */
+    body[data-theme="forest-green"] #loginner-settings-content select option,
+    body[data-theme="forest-green"] #settings-project-select option,
+    body[data-theme="forest-green"] select#settings-project-select option {
+      color: #000000 !important;
+      background: #ffffff !important;
+    }
+    /* Ensure dropdown list is visible when opened - additional specificity */
+    body[data-theme="forest-green"] #settings-project-select:focus,
+    body[data-theme="forest-green"] #settings-project-select:active,
+    body[data-theme="forest-green"] #loginner-settings-content select:focus,
+    body[data-theme="forest-green"] #loginner-settings-content select:active {
+      color: #000000 !important;
+      background: #ffffff !important;
+    }
+    /* Target all possible option states */
+    body[data-theme="forest-green"] #settings-project-select option:hover,
+    body[data-theme="forest-green"] #settings-project-select option:checked,
+    body[data-theme="forest-green"] #settings-project-select option:selected {
+      color: #000000 !important;
+      background: #e5e7eb !important;
+    }
+    /* Ensure dropdown list itself is visible */
+    body[data-theme="forest-green"] #settings-project-select:focus,
+    body[data-theme="forest-green"] #settings-project-select:active {
+      color: #000000 !important;
+      background: #ffffff !important;
+    }
 
       border-color: rgba(148, 163, 184, 0.35) !important; /* thin outline only */
     }
@@ -3641,6 +3693,13 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       -webkit-user-select: text !important;
     }
     #loginner-settings-content button { pointer-events: auto !important; }
+    /* CRITICAL FIX: Ensure project name input is always typeable */
+    #new-project-name {
+      pointer-events: auto !important;
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      cursor: text !important;
+    }
     
     /* Hide settings scrollbar completely */
     #loginner-settings-overlay .settings-scrollable {
@@ -3659,10 +3718,16 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       display: none !important;
     }
     
-    /* Style select options in settings */
+    /* Style select options in settings - Default dark theme */
     #loginner-settings-content select option {
       background: #2d3748 !important;
       color: white !important;
+    }
+    /* Forest Green Theme override - Make dropdown options visible */
+    body[data-theme="forest-green"] #loginner-settings-content select option,
+    body[data-theme="forest-green"] #settings-project-select option {
+      background: #ffffff !important;
+      color: #000000 !important;
     }
     
     /* Style input placeholders for white inputs (use dark gray for contrast) */
@@ -4205,7 +4270,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           <div style="background: #e5e9f0; border: 1px solid #ddd; border-radius: 8px; padding: 12px; text-align: center;">
           <span class="material-icons" style="color: #4a86e8; font-size: 16px; margin-bottom: 6px;">schedule</span>
           <div id="today-time-display" style="color: #4a86e8; font-weight: 600; font-size: 20px; margin-bottom: 2px;">00:00:00</div>
-            <div style="color: #666; font-size: 12px;">Today</div>
+            <div id="today-label" style="color: #666; font-size: 12px;">Today</div>
             <div id="today-sessions-count" style="color: #666; font-size: 10px; margin-top: 2px;">Sessions: 0</div>
               </div>
             </div>
@@ -4213,22 +4278,22 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
         <div style="background: #e5e9f0; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; text-align: center;">
           <span class="material-icons" style="color: #4a86e8; font-size: 16px; margin-bottom: 6px;">calendar_month</span>
           <div id="monthly-time-display" class="monthly-hours-value" style="color: #4a86e8; font-weight: 600; font-size: 28px; margin-bottom: 2px;">00:00:00</div>
-          <div style="color: #666; font-size: 14px;">Monthly</div>
-          <div style="color: #666; font-size: 12px; margin-top: 2px;">Total time</div>
+          <div id="monthly-label" style="color: #666; font-size: 14px;">Monthly</div>
+          <div id="total-time-label" style="color: #666; font-size: 12px; margin-top: 2px;">Total time</div>
         </div>
 
         <!-- Monthly total transactions -->
         <div style="background: #e5e9f0; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; text-align: center;" title="Incomes from sells/services, etc...">
-          <div style="font-size: 16px; font-weight: bold; color: #666; margin-bottom: 10px;">Monthly total transactions</div>
+          <div id="monthly-total-transactions-label" style="font-size: 16px; font-weight: bold; color: #666; margin-bottom: 10px;">Monthly total transactions</div>
           <div style="display: flex; align-items: stretch; justify-content: center; gap: 8px; font-size: 13px;">
             <!-- Income column -->
             <div id="loginner-total-income" style="flex: 1; min-width: 0; background: white; border: 1px solid rgba(22,163,74,0.35); border-radius: 6px; padding: 6px 8px; color: #16a34a;">
-              <div style="text-transform: uppercase; font-size: 11px; margin-bottom: 2px;">Income</div>
+              <div id="loginner-income-label" style="text-transform: uppercase; font-size: 11px; margin-bottom: 2px;">Income</div>
               <div id="loginner-total-income-value" style="font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">+0.00 $</div>
             </div>
             <!-- Outcome column -->
             <div id="loginner-total-outcome" style="flex: 1; min-width: 0; background: white; border: 1px solid rgba(248,113,113,0.5); border-radius: 6px; padding: 6px 8px; color: #dc2626;">
-              <div style="text-transform: uppercase; font-size: 11px; margin-bottom: 2px;">Outcome</div>
+              <div id="loginner-outcome-label" style="text-transform: uppercase; font-size: 11px; margin-bottom: 2px;">Outcome</div>
               <div id="loginner-total-outcome-value" style="font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-0.00 $</div>
             </div>
             <!-- Profit column -->
@@ -4241,10 +4306,10 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           <!-- Transaction Trends Chart -->
           <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #ddd;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-              <div style="font-size: 14px; font-weight: bold; color: #666;">Transaction Trends</div>
+              <div id="transaction-trends-label" style="font-size: 14px; font-weight: bold; color: #666;">Transaction Trends</div>
               <div style="display: flex; gap: 4px; background: white; border-radius: 6px; padding: 2px; border: 1px solid #ddd;">
-                <button id="chart-view-days" onclick="switchTransactionChartView('days')" style="background: #4a86e8; color: white; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s;">Days</button>
-                <button id="chart-view-months" onclick="switchTransactionChartView('months')" style="background: transparent; color: #666; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s;">Months</button>
+                <button id="chart-view-days" onclick="switchTransactionChartView('days')" style="background: #4a86e8; color: white; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s;" data-translate="days">Days</button>
+                <button id="chart-view-months" onclick="switchTransactionChartView('months')" style="background: transparent; color: #666; border: none; border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s;" data-translate="months">Months</button>
               </div>
             </div>
             <div style="position: relative; background: white; border-radius: 6px; padding: 12px; height: 180px;">
@@ -4253,11 +4318,11 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             <div style="display: flex; justify-content: center; gap: 16px; margin-top: 8px; font-size: 11px;">
               <div style="display: flex; align-items: center; gap: 4px;">
                 <div style="width: 12px; height: 3px; background: #16a34a; border-radius: 2px;"></div>
-                <span style="color: #666;">Income</span>
+                <span id="chart-legend-income" style="color: #666;">Income</span>
               </div>
               <div style="display: flex; align-items: center; gap: 4px;">
                 <div style="width: 12px; height: 3px; background: #dc2626; border-radius: 2px;"></div>
-                <span style="color: #666;">Outcome</span>
+                <span id="chart-legend-outcome" style="color: #666;">Outcome</span>
               </div>
             </div>
           </div>
@@ -4369,36 +4434,36 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px;">
             <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #ddd;">
               <span class="material-icons" style="color: #4a86e8; font-size: 14px; margin-bottom: 2px;">calendar_month</span>
-              <div style="color: #666; font-size: 10px; margin-bottom: 2px;">Month</div>
+              <div id="project-values-month-label" style="color: #666; font-size: 10px; margin-bottom: 2px;">Month</div>
               <div id="project-values-month" style="color: #333; font-weight: bold; font-size: 12px;">—</div>
             </div>
             <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #ddd;">
               <span class="material-icons" style="color: #4a86e8; font-size: 14px; margin-bottom: 2px;">schedule</span>
-              <div style="color: #666; font-size: 10px; margin-bottom: 2px;">Hours</div>
+              <div id="project-values-hours-label" style="color: #666; font-size: 10px; margin-bottom: 2px;">Hours</div>
               <div id="project-values-hours" style="color: #333; font-weight: bold; font-size: 12px;">0</div>
             </div>
             <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #ddd;">
               <span class="material-icons" style="color: #4a86e8; font-size: 14px; margin-bottom: 2px;">attach_money</span>
-              <div style="color: #666; font-size: 10px; margin-bottom: 2px;">Avg Value</div>
+              <div id="project-values-avg-value-label" style="color: #666; font-size: 10px; margin-bottom: 2px;">Avg Value</div>
               <div id="project-values-avg-value" style="color: #333; font-weight: bold; font-size: 12px;">0</div>
             </div>
             <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #ddd;">
               <span class="material-icons" style="color: #4a86e8; font-size: 14px; margin-bottom: 2px;">trending_up</span>
-              <div style="color: #666; font-size: 10px; margin-bottom: 2px;">Revenue</div>
+              <div id="project-values-revenue-label" style="color: #666; font-size: 10px; margin-bottom: 2px;">Revenue</div>
               <div id="project-values-revenue" style="color: #333; font-weight: bold; font-size: 12px;">0</div>
             </div>
           </div>
 
           <!-- Project Table -->
           <div style="background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
-            <div style="color: #333; font-weight: bold; margin-bottom: 10px; font-size: 15px;">Project Breakdown</div>
+            <div id="project-breakdown-label" style="color: #333; font-weight: bold; margin-bottom: 10px; font-size: 15px;">Project Breakdown</div>
             <table style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid #ddd;">
-                  <th style="color: #666; font-size: 11px; font-weight: bold; text-align: left; padding: 6px;">Project</th>
-                  <th style="color: #666; font-size: 11px; font-weight: bold; text-align: center; padding: 6px;">Hours</th>
-                  <th style="color: #666; font-size: 11px; font-weight: bold; text-align: center; padding: 6px;">Value</th>
-                  <th style="color: #666; font-size: 11px; font-weight: bold; text-align: center; padding: 6px;">Total</th>
+                  <th id="project-table-header-project" style="color: #666; font-size: 11px; font-weight: bold; text-align: left; padding: 6px;">Project</th>
+                  <th id="project-table-header-hours" style="color: #666; font-size: 11px; font-weight: bold; text-align: center; padding: 6px;">Hours</th>
+                  <th id="project-table-header-value" style="color: #666; font-size: 11px; font-weight: bold; text-align: center; padding: 6px;">Value</th>
+                  <th id="project-table-header-total" style="color: #666; font-size: 11px; font-weight: bold; text-align: center; padding: 6px;">Total</th>
                 </tr>
               </thead>
               <tbody class="project-table-body">
@@ -4416,7 +4481,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             <span class="material-icons" style="color: #4a86e8; font-size: 16px;">pie_chart</span>
             <h3 id="loginner-total-logs-title" style="color: #333; font-weight: bold; font-size: 14px; margin: 0; cursor: help;" title="See a breakdown of time logged across all your projects. Track progress against package hours and identify which projects need more attention.">Total Logs by Project</h3>
           </div>
-          <div style="color: #666; font-size: 10px; margin-bottom: 8px;">Distribution of time logged for each project</div>
+          <div id="distribution-time-logged-label" style="color: #666; font-size: 10px; margin-bottom: 8px; margin-left: 24px;">Distribution of time logged for each project</div>
           
           <div class="pie-chart-container" style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px;">
             <!-- Dynamic Chart with Real Project Data - Solid and Bigger -->
@@ -4471,7 +4536,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             </button>
           </div>
           
-          <div style="color: #666; font-size: 10px; text-align: center; margin-top: 8px;">View full report or download detailed data</div>
+          <div id="view-download-desc-text" style="color: #666; font-size: 10px; text-align: center; margin-top: 8px;">View full report or download detailed data</div>
         </div>
       </div>
     </div>
@@ -6123,7 +6188,24 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       if (clearCurrentBtn) {
         if (currentTab === 'history') {
           clearCurrentBtn.style.display = 'block';
-          clearCurrentBtn.textContent = showSaved ? 'Clear Saved Items' : 'Clear History';
+          const currentLanguage = window.currentLanguage || localStorage.getItem('tilbi-language') || 'en';
+          const translations = {
+            en: { clearHistory: 'Clear History', clearSavedItems: 'Clear Saved Items' },
+            es: { clearHistory: 'Limpiar Historial', clearSavedItems: 'Limpiar Elementos Guardados' },
+            fr: { clearHistory: 'Effacer l\'Historique', clearSavedItems: 'Effacer les Éléments Enregistrés' },
+            de: { clearHistory: 'Verlauf Löschen', clearSavedItems: 'Gespeicherte Elemente Löschen' },
+            it: { clearHistory: 'Cancella Cronologia', clearSavedItems: 'Cancella Elementi Salvati' },
+            pt: { clearHistory: 'Limpar Histórico', clearSavedItems: 'Limpar Itens Salvos' },
+            ru: { clearHistory: 'Очистить Историю', clearSavedItems: 'Очистить Сохраненные Элементы' },
+            zh: { clearHistory: '清除历史', clearSavedItems: '清除已保存项目' },
+            ja: { clearHistory: '履歴をクリア', clearSavedItems: '保存されたアイテムをクリア' },
+            ko: { clearHistory: '기록 지우기', clearSavedItems: '저장된 항목 지우기' },
+            ar: { clearHistory: 'مسح السجل', clearSavedItems: 'مسح العناصر المحفوظة' },
+            he: { clearHistory: 'נקה היסטוריה', clearSavedItems: 'נקה פריטים שמורים' },
+            hi: { clearHistory: 'इतिहास साफ़ करें', clearSavedItems: 'सहेजे गए आइटम साफ़ करें' }
+          };
+          const t = translations[currentLanguage] || translations.en;
+          clearCurrentBtn.textContent = showSaved ? t.clearSavedItems : t.clearHistory;
         } else if (currentTab !== 'screener') {
           clearCurrentBtn.style.display = 'none';
         }
@@ -6242,6 +6324,13 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             if (timerCard) {
               timerCard.style.transition = 'opacity 0.3s ease-in';
               timerCard.style.opacity = '1';
+            }
+            // Force update pie chart when tab becomes visible
+            try {
+              updateLogsByProject();
+              console.log('✓ Pie chart updated after tab visibility');
+            } catch (err) {
+              console.error('Error updating pie chart on tab switch:', err);
             }
           }, 200);
         } else if (tabName === 'screener') {
@@ -7735,10 +7824,17 @@ searchInput.disabled = true;
           nameInput.style.borderColor = '#fde047';
           nameInput.disabled = true;
           nameInput.style.opacity = '0.75';
+          nameInput.style.pointerEvents = 'none';
         } else {
           nameInput.style.borderColor = '#3b82f6';
           nameInput.disabled = false;
+          nameInput.readOnly = false;
           nameInput.style.opacity = '1';
+          nameInput.style.pointerEvents = 'auto';
+          nameInput.style.cursor = 'text';
+          // Ensure input is removable from disabled state
+          nameInput.removeAttribute('disabled');
+          nameInput.removeAttribute('readonly');
         }
       }
     }
@@ -8084,7 +8180,70 @@ searchInput.disabled = true;
           manualLogIncome: 'Income',
           manualLogOutcome: 'Outcome',
           manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogOutcomeDescription: 'Outcome description',
+          topProject: 'Top Project',
+          totalHours: 'Total Hours',
+          viewDownload: 'View/Download',
+          viewDownloadDesc: 'View full report or download detailed data',
+          addManualLog: 'Add Manual Log',
+          logDetails: 'Log Details',
+          date: 'Date',
+          startTime: 'Start Time',
+          endTime: 'End Time',
+          totalDuration: 'Total Duration',
+          description: 'Description',
+          enterWorkDescription: 'Enter work description...',
+          incomeOptional: 'Income (optional)',
+          outcomeOptional: 'Outcome (optional)',
+          enterIncomeDescription: 'Enter income description...',
+          enterOutcomeDescription: 'Enter outcome description...',
+          saveLog: 'Save Log',
+          monthlyReport: 'Monthly Report',
+          loginnerFullReports: 'Loginner Full Reports',
+          selectProjectForReport: 'Select Project for Report',
+          allProjects: 'All Projects',
+          export: 'Export',
+          share: 'Share',
+          print: 'Print',
+          exportAsTxt: 'Export as TXT',
+          exportAsCsv: 'Export as CSV',
+          includeIncomeOutcome: 'Include income/outcome',
+          yes: 'Yes',
+          no: 'No',
+          shareViaEmail: 'Share via Email',
+          shareViaWhatsapp: 'Share via WhatsApp',
+          copyShareLink: 'Copy Share Link',
+          revenueAnalysis: 'Revenue Analysis',
+          monthlyTotalTransactions: 'Monthly total transactions',
+          transactionTrends: 'Transaction Trends',
+          days: 'Days',
+          months: 'Months',
+          projectBreakdown: 'Project Breakdown',
+          projectTableProject: 'Project',
+          projectTableHours: 'Hours',
+          projectTableValue: 'Value',
+          projectTableTotal: 'Total',
+          sessionsLabel: 'Sessions',
+          incomeLabel: 'Income',
+          outcomeLabel: 'Outcome',
+          profitLabel: 'Profit',
+          deficitLabel: 'Deficit',
+          distributionTimeLogged: 'Distribution of time logged for each project',
+          projectLabel: 'Project',
+          totalSessions: 'Total Sessions',
+          totalTime: 'Total Time',
+          sessionDetails: 'Session Details',
+          entries: 'entries',
+          noSessionsRecordedYet: 'No sessions recorded yet',
+          noSessionsRecorded: 'No sessions recorded',
+          netProfit: 'Net Profit',
+          netDeficit: 'Net Deficit',
+          totalIncome: 'Total Income',
+          totalOutcome: 'Total Outcome',
+          monthLabel: 'Month',
+          hoursLabel: 'Hours',
+          avgValueLabel: 'Avg Value',
+          revenueLabel: 'Revenue'
         },
         es: { 
           start: 'INICIAR', pause: 'PAUSA', log: 'REGISTRAR', settings: 'AJUSTES',
@@ -8092,10 +8251,73 @@ searchInput.disabled = true;
           projectValues: 'Valores y Conversión de Proyectos', monthlyResume: 'Resumen Mensual',
           totalLogs: 'Registros Totales por Proyecto', today: 'Hoy', week: 'Semana', monthly: 'Mensual',
           totalTime: 'Tiempo total', sessions: 'Sesiones',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'Ingresos',
+          manualLogOutcome: 'Gastos',
+          manualLogIncomeDescription: 'Descripción de ingresos',
+          manualLogOutcomeDescription: 'Descripción de gastos',
+          topProject: 'Proyecto Principal',
+          totalHours: 'Horas Totales',
+          viewDownload: 'Ver/Descargar',
+          viewDownloadDesc: 'Ver informe completo o descargar datos detallados',
+          addManualLog: 'Agregar Registro Manual',
+          logDetails: 'Detalles del Registro',
+          date: 'Fecha',
+          startTime: 'Hora de Inicio',
+          endTime: 'Hora de Fin',
+          totalDuration: 'Duración Total',
+          description: 'Descripción',
+          enterWorkDescription: 'Ingrese descripción del trabajo...',
+          incomeOptional: 'Ingresos (opcional)',
+          outcomeOptional: 'Gastos (opcional)',
+          enterIncomeDescription: 'Ingrese descripción de ingresos...',
+          enterOutcomeDescription: 'Ingrese descripción de gastos...',
+          saveLog: 'Guardar Registro',
+          monthlyReport: 'Informe Mensual',
+          loginnerFullReports: 'Informes Completos de Loginner',
+          selectProjectForReport: 'Seleccionar Proyecto para Informe',
+          allProjects: 'Todos los Proyectos',
+          export: 'Exportar',
+          share: 'Compartir',
+          print: 'Imprimir',
+          exportAsTxt: 'Exportar como TXT',
+          exportAsCsv: 'Exportar como CSV',
+          includeIncomeOutcome: 'Incluir ingresos/gastos',
+          yes: 'Sí',
+          no: 'No',
+          shareViaEmail: 'Compartir por Correo',
+          shareViaWhatsapp: 'Compartir por WhatsApp',
+          copyShareLink: 'Copiar Enlace de Compartir',
+          revenueAnalysis: 'Análisis de Ingresos',
+          monthlyTotalTransactions: 'Transacciones totales mensuales',
+          transactionTrends: 'Tendencias de Transacciones',
+          days: 'Días',
+          months: 'Meses',
+          projectBreakdown: 'Desglose de Proyectos',
+          projectTableProject: 'Proyecto',
+          projectTableHours: 'Horas',
+          projectTableValue: 'Valor',
+          projectTableTotal: 'Total',
+          sessionsLabel: 'Sesiones',
+          incomeLabel: 'Ingresos',
+          outcomeLabel: 'Gastos',
+          profitLabel: 'Ganancia',
+          deficitLabel: 'Déficit',
+          distributionTimeLogged: 'Distribución del tiempo registrado para cada proyecto',
+          projectLabel: 'Proyecto',
+          totalSessions: 'Total de Sesiones',
+          totalTime: 'Tiempo Total',
+          sessionDetails: 'Detalles de Sesión',
+          entries: 'entradas',
+          noSessionsRecordedYet: 'No se han registrado sesiones aún',
+          noSessionsRecorded: 'No se registraron sesiones',
+          netProfit: 'Ganancia Neta',
+          netDeficit: 'Déficit Neto',
+          totalIncome: 'Ingresos Totales',
+          totalOutcome: 'Gastos Totales',
+          monthLabel: 'Mes',
+          hoursLabel: 'Horas',
+          avgValueLabel: 'Valor Promedio',
+          revenueLabel: 'Ingresos'
         },
         fr: { 
           start: 'DÉMARRER', pause: 'PAUSE', log: 'ENREGISTRER', settings: 'PARAMÈTRES',
@@ -8103,10 +8325,73 @@ searchInput.disabled = true;
           projectValues: 'Valeurs et Conversion de Projets', monthlyResume: 'Résumé Mensuel',
           totalLogs: 'Journaux Totaux par Projet', today: 'Aujourd\'hui', week: 'Semaine', monthly: 'Mensuel',
           totalTime: 'Temps total', sessions: 'Sessions',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'Revenus',
+          manualLogOutcome: 'Dépenses',
+          manualLogIncomeDescription: 'Description des revenus',
+          manualLogOutcomeDescription: 'Description des dépenses',
+          topProject: 'Projet Principal',
+          totalHours: 'Heures Totales',
+          viewDownload: 'Voir/Télécharger',
+          viewDownloadDesc: 'Voir le rapport complet ou télécharger des données détaillées',
+          addManualLog: 'Ajouter un Enregistrement Manuel',
+          logDetails: 'Détails de l\'Enregistrement',
+          date: 'Date',
+          startTime: 'Heure de Début',
+          endTime: 'Heure de Fin',
+          totalDuration: 'Durée Totale',
+          description: 'Description',
+          enterWorkDescription: 'Entrez la description du travail...',
+          incomeOptional: 'Revenus (optionnel)',
+          outcomeOptional: 'Dépenses (optionnel)',
+          enterIncomeDescription: 'Entrez la description des revenus...',
+          enterOutcomeDescription: 'Entrez la description des dépenses...',
+          saveLog: 'Enregistrer le Journal',
+          monthlyReport: 'Rapport Mensuel',
+          loginnerFullReports: 'Rapports Complets Loginner',
+          selectProjectForReport: 'Sélectionner un Projet pour le Rapport',
+          allProjects: 'Tous les Projets',
+          export: 'Exporter',
+          share: 'Partager',
+          print: 'Imprimer',
+          exportAsTxt: 'Exporter en TXT',
+          exportAsCsv: 'Exporter en CSV',
+          includeIncomeOutcome: 'Inclure revenus/dépenses',
+          yes: 'Oui',
+          no: 'Non',
+          shareViaEmail: 'Partager par Email',
+          shareViaWhatsapp: 'Partager par WhatsApp',
+          copyShareLink: 'Copier le Lien de Partage',
+          revenueAnalysis: 'Analyse des Revenus',
+          monthlyTotalTransactions: 'Transactions totales mensuelles',
+          transactionTrends: 'Tendances des Transactions',
+          days: 'Jours',
+          months: 'Mois',
+          projectBreakdown: 'Répartition des Projets',
+          projectTableProject: 'Projet',
+          projectTableHours: 'Heures',
+          projectTableValue: 'Valeur',
+          projectTableTotal: 'Total',
+          sessionsLabel: 'Sessions',
+          incomeLabel: 'Revenus',
+          outcomeLabel: 'Dépenses',
+          profitLabel: 'Profit',
+          deficitLabel: 'Déficit',
+          distributionTimeLogged: 'Répartition du temps enregistré pour chaque projet',
+          projectLabel: 'Projet',
+          totalSessions: 'Sessions Totales',
+          totalTime: 'Temps Total',
+          sessionDetails: 'Détails de Session',
+          entries: 'entrées',
+          noSessionsRecordedYet: 'Aucune session enregistrée pour le moment',
+          noSessionsRecorded: 'Aucune session enregistrée',
+          netProfit: 'Profit Net',
+          netDeficit: 'Déficit Net',
+          totalIncome: 'Revenus Totaux',
+          totalOutcome: 'Dépenses Totales',
+          monthLabel: 'Mois',
+          hoursLabel: 'Heures',
+          avgValueLabel: 'Valeur Moyenne',
+          revenueLabel: 'Revenus'
         },
         de: { 
           start: 'START', pause: 'PAUSE', log: 'PROTOKOLL', settings: 'EINSTELLUNGEN',
@@ -8114,10 +8399,73 @@ searchInput.disabled = true;
           projectValues: 'Projektwerte und Konvertierung', monthlyResume: 'Monatliche Zusammenfassung',
           totalLogs: 'Gesamtprotokolle nach Projekt', today: 'Heute', week: 'Woche', monthly: 'Monatlich',
           totalTime: 'Gesamtzeit', sessions: 'Sitzungen',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'Einnahmen',
+          manualLogOutcome: 'Ausgaben',
+          manualLogIncomeDescription: 'Einnahmenbeschreibung',
+          manualLogOutcomeDescription: 'Ausgabenbeschreibung',
+          topProject: 'Top-Projekt',
+          totalHours: 'Gesamtstunden',
+          viewDownload: 'Ansehen/Herunterladen',
+          viewDownloadDesc: 'Vollständigen Bericht ansehen oder detaillierte Daten herunterladen',
+          addManualLog: 'Manuelles Protokoll Hinzufügen',
+          logDetails: 'Protokolldetails',
+          date: 'Datum',
+          startTime: 'Startzeit',
+          endTime: 'Endzeit',
+          totalDuration: 'Gesamtdauer',
+          description: 'Beschreibung',
+          enterWorkDescription: 'Arbeitsbeschreibung eingeben...',
+          incomeOptional: 'Einnahmen (optional)',
+          outcomeOptional: 'Ausgaben (optional)',
+          enterIncomeDescription: 'Einnahmenbeschreibung eingeben...',
+          enterOutcomeDescription: 'Ausgabenbeschreibung eingeben...',
+          saveLog: 'Protokoll Speichern',
+          monthlyReport: 'Monatsbericht',
+          loginnerFullReports: 'Loginner Vollständige Berichte',
+          selectProjectForReport: 'Projekt für Bericht Auswählen',
+          allProjects: 'Alle Projekte',
+          export: 'Exportieren',
+          share: 'Teilen',
+          print: 'Drucken',
+          exportAsTxt: 'Als TXT Exportieren',
+          exportAsCsv: 'Als CSV Exportieren',
+          includeIncomeOutcome: 'Einnahmen/Ausgaben einschließen',
+          yes: 'Ja',
+          no: 'Nein',
+          shareViaEmail: 'Per E-Mail Teilen',
+          shareViaWhatsapp: 'Per WhatsApp Teilen',
+          copyShareLink: 'Teilungslink Kopieren',
+          revenueAnalysis: 'Umsatzanalyse',
+          monthlyTotalTransactions: 'Monatliche Gesamttransaktionen',
+          transactionTrends: 'Transaktionstrends',
+          days: 'Tage',
+          months: 'Monate',
+          projectBreakdown: 'Projektaufschlüsselung',
+          projectTableProject: 'Projekt',
+          projectTableHours: 'Stunden',
+          projectTableValue: 'Wert',
+          projectTableTotal: 'Gesamt',
+          sessionsLabel: 'Sitzungen',
+          incomeLabel: 'Einnahmen',
+          outcomeLabel: 'Ausgaben',
+          profitLabel: 'Gewinn',
+          deficitLabel: 'Defizit',
+          distributionTimeLogged: 'Verteilung der erfassten Zeit für jedes Projekt',
+          projectLabel: 'Projekt',
+          totalSessions: 'Gesamtsitzungen',
+          totalTime: 'Gesamtzeit',
+          sessionDetails: 'Sitzungsdetails',
+          entries: 'Einträge',
+          noSessionsRecordedYet: 'Noch keine Sitzungen aufgezeichnet',
+          noSessionsRecorded: 'Keine Sitzungen aufgezeichnet',
+          netProfit: 'Nettogewinn',
+          netDeficit: 'Nettoverlust',
+          totalIncome: 'Gesamteinnahmen',
+          totalOutcome: 'Gesamtausgaben',
+          monthLabel: 'Monat',
+          hoursLabel: 'Stunden',
+          avgValueLabel: 'Durchschnittswert',
+          revenueLabel: 'Umsatz'
         },
         he: { 
           start: 'התחל', pause: 'השהה', log: 'רשום', settings: 'הגדרות',
@@ -8125,10 +8473,73 @@ searchInput.disabled = true;
           projectValues: 'ערכי פרויקט והמרה', monthlyResume: 'סיכום חודשי',
           totalLogs: 'סך רישומים לפי פרויקט', today: 'היום', week: 'שבוע', monthly: 'חודשי',
           totalTime: 'זמן כולל', sessions: 'סשנים',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'הכנסה',
+          manualLogOutcome: 'הוצאה',
+          manualLogIncomeDescription: 'תיאור הכנסה',
+          manualLogOutcomeDescription: 'תיאור הוצאה',
+          topProject: 'פרויקט מוביל',
+          totalHours: 'סה"כ שעות',
+          viewDownload: 'צפה/הורד',
+          viewDownloadDesc: 'צפה בדוח מלא או הורד נתונים מפורטים',
+          addManualLog: 'הוסף רישום ידני',
+          logDetails: 'פרטי רישום',
+          date: 'תאריך',
+          startTime: 'שעת התחלה',
+          endTime: 'שעת סיום',
+          totalDuration: 'משך כולל',
+          description: 'תיאור',
+          enterWorkDescription: 'הכנס תיאור עבודה...',
+          incomeOptional: 'הכנסה (אופציונלי)',
+          outcomeOptional: 'הוצאה (אופציונלי)',
+          enterIncomeDescription: 'הכנס תיאור הכנסה...',
+          enterOutcomeDescription: 'הכנס תיאור הוצאה...',
+          saveLog: 'שמור רישום',
+          monthlyReport: 'דוח חודשי',
+          loginnerFullReports: 'דוחות מלאים של Loginner',
+          selectProjectForReport: 'בחר פרויקט לדוח',
+          allProjects: 'כל הפרויקטים',
+          export: 'ייצא',
+          share: 'שתף',
+          print: 'הדפס',
+          exportAsTxt: 'ייצא כ-TXT',
+          exportAsCsv: 'ייצא כ-CSV',
+          includeIncomeOutcome: 'כלול הכנסה/הוצאה',
+          yes: 'כן',
+          no: 'לא',
+          shareViaEmail: 'שתף בדוא"ל',
+          shareViaWhatsapp: 'שתף ב-WhatsApp',
+          copyShareLink: 'העתק קישור שיתוף',
+          revenueAnalysis: 'ניתוח הכנסות',
+          monthlyTotalTransactions: 'סך העסקאות החודשי',
+          transactionTrends: 'מגמות עסקאות',
+          days: 'ימים',
+          months: 'חודשים',
+          projectBreakdown: 'פירוט פרויקטים',
+          projectTableProject: 'פרויקט',
+          projectTableHours: 'שעות',
+          projectTableValue: 'ערך',
+          projectTableTotal: 'סה"כ',
+          sessionsLabel: 'סשנים',
+          incomeLabel: 'הכנסה',
+          outcomeLabel: 'הוצאה',
+          profitLabel: 'רווח',
+          deficitLabel: 'גירעון',
+          distributionTimeLogged: 'התפלגות הזמן שנרשם לכל פרויקט',
+          projectLabel: 'פרויקט',
+          totalSessions: 'סה"כ סשנים',
+          totalTime: 'זמן כולל',
+          sessionDetails: 'פרטי סשן',
+          entries: 'רשומות',
+          noSessionsRecordedYet: 'עדיין לא נרשמו סשנים',
+          noSessionsRecorded: 'לא נרשמו סשנים',
+          netProfit: 'רווח נקי',
+          netDeficit: 'גירעון נקי',
+          totalIncome: 'סה"כ הכנסה',
+          totalOutcome: 'סה"כ הוצאה',
+          monthLabel: 'חודש',
+          hoursLabel: 'שעות',
+          avgValueLabel: 'ערך ממוצע',
+          revenueLabel: 'הכנסה'
         },
         ar: { 
           start: 'ابدأ', pause: 'إيقاف', log: 'سجل', settings: 'إعدادات',
@@ -8136,10 +8547,73 @@ searchInput.disabled = true;
           projectValues: 'قيم المشروع والتحويل', monthlyResume: 'الملخص الشهري',
           totalLogs: 'إجمالي السجلات حسب المشروع', today: 'اليوم', week: 'الأسبوع', monthly: 'شهري',
           totalTime: 'الوقت الإجمالي', sessions: 'جلسات',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'الدخل',
+          manualLogOutcome: 'المصروفات',
+          manualLogIncomeDescription: 'وصف الدخل',
+          manualLogOutcomeDescription: 'وصف المصروفات',
+          topProject: 'المشروع الرئيسي',
+          totalHours: 'إجمالي الساعات',
+          viewDownload: 'عرض/تحميل',
+          viewDownloadDesc: 'عرض التقرير الكامل أو تحميل البيانات التفصيلية',
+          addManualLog: 'إضافة سجل يدوي',
+          logDetails: 'تفاصيل السجل',
+          date: 'التاريخ',
+          startTime: 'وقت البدء',
+          endTime: 'وقت الانتهاء',
+          totalDuration: 'المدة الإجمالية',
+          description: 'الوصف',
+          enterWorkDescription: 'أدخل وصف العمل...',
+          incomeOptional: 'الدخل (اختياري)',
+          outcomeOptional: 'المصروفات (اختياري)',
+          enterIncomeDescription: 'أدخل وصف الدخل...',
+          enterOutcomeDescription: 'أدخل وصف المصروفات...',
+          saveLog: 'حفظ السجل',
+          monthlyReport: 'التقرير الشهري',
+          loginnerFullReports: 'تقارير Loginner الكاملة',
+          selectProjectForReport: 'اختر المشروع للتقرير',
+          allProjects: 'جميع المشاريع',
+          export: 'تصدير',
+          share: 'مشاركة',
+          print: 'طباعة',
+          exportAsTxt: 'تصدير كـ TXT',
+          exportAsCsv: 'تصدير كـ CSV',
+          includeIncomeOutcome: 'تضمين الدخل/المصروفات',
+          yes: 'نعم',
+          no: 'لا',
+          shareViaEmail: 'مشاركة عبر البريد الإلكتروني',
+          shareViaWhatsapp: 'مشاركة عبر واتساب',
+          copyShareLink: 'نسخ رابط المشاركة',
+          revenueAnalysis: 'تحليل الإيرادات',
+          monthlyTotalTransactions: 'إجمالي المعاملات الشهرية',
+          transactionTrends: 'اتجاهات المعاملات',
+          days: 'أيام',
+          months: 'أشهر',
+          projectBreakdown: 'تفصيل المشاريع',
+          projectTableProject: 'المشروع',
+          projectTableHours: 'ساعات',
+          projectTableValue: 'القيمة',
+          projectTableTotal: 'الإجمالي',
+          sessionsLabel: 'جلسات',
+          incomeLabel: 'الدخل',
+          outcomeLabel: 'المصروفات',
+          profitLabel: 'الربح',
+          deficitLabel: 'العجز',
+          distributionTimeLogged: 'توزيع الوقت المسجل لكل مشروع',
+          projectLabel: 'المشروع',
+          totalSessions: 'إجمالي الجلسات',
+          totalTime: 'الوقت الإجمالي',
+          sessionDetails: 'تفاصيل الجلسة',
+          entries: 'إدخالات',
+          noSessionsRecordedYet: 'لم يتم تسجيل جلسات بعد',
+          noSessionsRecorded: 'لم يتم تسجيل جلسات',
+          netProfit: 'صافي الربح',
+          netDeficit: 'صافي العجز',
+          totalIncome: 'إجمالي الدخل',
+          totalOutcome: 'إجمالي المصروفات',
+          monthLabel: 'الشهر',
+          hoursLabel: 'ساعات',
+          avgValueLabel: 'متوسط القيمة',
+          revenueLabel: 'الإيرادات'
         },
         ru: { 
           start: 'СТАРТ', pause: 'ПАУЗА', log: 'ЗАПИСЬ', settings: 'НАСТРОЙКИ',
@@ -8147,10 +8621,73 @@ searchInput.disabled = true;
           projectValues: 'Значения и Конверсия Проектов', monthlyResume: 'Месячная Сводка',
           totalLogs: 'Всего Записей по Проекту', today: 'Сегодня', week: 'Неделя', monthly: 'Месячный',
           totalTime: 'Общее время', sessions: 'Сессии',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'Доход',
+          manualLogOutcome: 'Расход',
+          manualLogIncomeDescription: 'Описание дохода',
+          manualLogOutcomeDescription: 'Описание расхода',
+          topProject: 'Главный Проект',
+          totalHours: 'Всего Часов',
+          viewDownload: 'Просмотр/Скачать',
+          viewDownloadDesc: 'Просмотреть полный отчет или скачать детальные данные',
+          addManualLog: 'Добавить Ручную Запись',
+          logDetails: 'Детали Записи',
+          date: 'Дата',
+          startTime: 'Время Начала',
+          endTime: 'Время Окончания',
+          totalDuration: 'Общая Длительность',
+          description: 'Описание',
+          enterWorkDescription: 'Введите описание работы...',
+          incomeOptional: 'Доход (необязательно)',
+          outcomeOptional: 'Расход (необязательно)',
+          enterIncomeDescription: 'Введите описание дохода...',
+          enterOutcomeDescription: 'Введите описание расхода...',
+          saveLog: 'Сохранить Запись',
+          monthlyReport: 'Месячный Отчет',
+          loginnerFullReports: 'Полные Отчеты Loginner',
+          selectProjectForReport: 'Выбрать Проект для Отчета',
+          allProjects: 'Все Проекты',
+          export: 'Экспорт',
+          share: 'Поделиться',
+          print: 'Печать',
+          exportAsTxt: 'Экспорт как TXT',
+          exportAsCsv: 'Экспорт как CSV',
+          includeIncomeOutcome: 'Включить доход/расход',
+          yes: 'Да',
+          no: 'Нет',
+          shareViaEmail: 'Поделиться по Email',
+          shareViaWhatsapp: 'Поделиться через WhatsApp',
+          copyShareLink: 'Копировать Ссылку',
+          revenueAnalysis: 'Анализ Доходов',
+          monthlyTotalTransactions: 'Месячные общие транзакции',
+          transactionTrends: 'Тренды Транзакций',
+          days: 'Дни',
+          months: 'Месяцы',
+          projectBreakdown: 'Разбивка по Проектам',
+          projectTableProject: 'Проект',
+          projectTableHours: 'Часы',
+          projectTableValue: 'Значение',
+          projectTableTotal: 'Всего',
+          sessionsLabel: 'Сессии',
+          incomeLabel: 'Доход',
+          outcomeLabel: 'Расход',
+          profitLabel: 'Прибыль',
+          deficitLabel: 'Дефицит',
+          distributionTimeLogged: 'Распределение зарегистрированного времени по каждому проекту',
+          projectLabel: 'Проект',
+          totalSessions: 'Всего Сессий',
+          totalTime: 'Общее Время',
+          sessionDetails: 'Детали Сессии',
+          entries: 'записей',
+          noSessionsRecordedYet: 'Сессии еще не записаны',
+          noSessionsRecorded: 'Сессии не записаны',
+          netProfit: 'Чистая Прибыль',
+          netDeficit: 'Чистый Дефицит',
+          totalIncome: 'Общий Доход',
+          totalOutcome: 'Общий Расход',
+          monthLabel: 'Месяц',
+          hoursLabel: 'Часы',
+          avgValueLabel: 'Среднее Значение',
+          revenueLabel: 'Доход'
         },
         ko: { 
           start: '시작', pause: '일시정지', log: '기록', settings: '설정',
@@ -8158,10 +8695,73 @@ searchInput.disabled = true;
           projectValues: '프로젝트 가치 및 변환', monthlyResume: '월간 요약',
           totalLogs: '프로젝트별 총 로그', today: '오늘', week: '주간', monthly: '월간',
           totalTime: '총 시간', sessions: '세션',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: '수입',
+          manualLogOutcome: '지출',
+          manualLogIncomeDescription: '수입 설명',
+          manualLogOutcomeDescription: '지출 설명',
+          topProject: '주요 프로젝트',
+          totalHours: '총 시간',
+          viewDownload: '보기/다운로드',
+          viewDownloadDesc: '전체 보고서 보기 또는 상세 데이터 다운로드',
+          addManualLog: '수동 로그 추가',
+          logDetails: '로그 세부사항',
+          date: '날짜',
+          startTime: '시작 시간',
+          endTime: '종료 시간',
+          totalDuration: '총 소요 시간',
+          description: '설명',
+          enterWorkDescription: '작업 설명 입력...',
+          incomeOptional: '수입 (선택사항)',
+          outcomeOptional: '지출 (선택사항)',
+          enterIncomeDescription: '수입 설명 입력...',
+          enterOutcomeDescription: '지출 설명 입력...',
+          saveLog: '로그 저장',
+          monthlyReport: '월간 보고서',
+          loginnerFullReports: 'Loginner 전체 보고서',
+          selectProjectForReport: '보고서용 프로젝트 선택',
+          allProjects: '모든 프로젝트',
+          export: '내보내기',
+          share: '공유',
+          print: '인쇄',
+          exportAsTxt: 'TXT로 내보내기',
+          exportAsCsv: 'CSV로 내보내기',
+          includeIncomeOutcome: '수입/지출 포함',
+          yes: '예',
+          no: '아니오',
+          shareViaEmail: '이메일로 공유',
+          shareViaWhatsapp: 'WhatsApp으로 공유',
+          copyShareLink: '공유 링크 복사',
+          revenueAnalysis: '수익 분석',
+          monthlyTotalTransactions: '월간 총 거래',
+          transactionTrends: '거래 동향',
+          days: '일',
+          months: '월',
+          projectBreakdown: '프로젝트 분석',
+          projectTableProject: '프로젝트',
+          projectTableHours: '시간',
+          projectTableValue: '가치',
+          projectTableTotal: '총계',
+          sessionsLabel: '세션',
+          incomeLabel: '수입',
+          outcomeLabel: '지출',
+          profitLabel: '이익',
+          deficitLabel: '적자',
+          distributionTimeLogged: '각 프로젝트별 기록된 시간 분포',
+          projectLabel: '프로젝트',
+          totalSessions: '총 세션',
+          totalTime: '총 시간',
+          sessionDetails: '세션 세부사항',
+          entries: '항목',
+          noSessionsRecordedYet: '아직 기록된 세션이 없습니다',
+          noSessionsRecorded: '기록된 세션이 없습니다',
+          netProfit: '순이익',
+          netDeficit: '순적자',
+          totalIncome: '총 수입',
+          totalOutcome: '총 지출',
+          monthLabel: '월',
+          hoursLabel: '시간',
+          avgValueLabel: '평균 가치',
+          revenueLabel: '수익'
         },
         zh: { 
           start: '开始', pause: '暂停', log: '记录', settings: '设置',
@@ -8169,10 +8769,73 @@ searchInput.disabled = true;
           projectValues: '项目价值和转换', monthlyResume: '月度总结',
           totalLogs: '按项目分类的总日志', today: '今天', week: '本周', monthly: '每月',
           totalTime: '总时间', sessions: '会话',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: '收入',
+          manualLogOutcome: '支出',
+          manualLogIncomeDescription: '收入描述',
+          manualLogOutcomeDescription: '支出描述',
+          topProject: '主要项目',
+          totalHours: '总小时数',
+          viewDownload: '查看/下载',
+          viewDownloadDesc: '查看完整报告或下载详细数据',
+          addManualLog: '添加手动记录',
+          logDetails: '记录详情',
+          date: '日期',
+          startTime: '开始时间',
+          endTime: '结束时间',
+          totalDuration: '总时长',
+          description: '描述',
+          enterWorkDescription: '输入工作描述...',
+          incomeOptional: '收入（可选）',
+          outcomeOptional: '支出（可选）',
+          enterIncomeDescription: '输入收入描述...',
+          enterOutcomeDescription: '输入支出描述...',
+          saveLog: '保存记录',
+          monthlyReport: '月度报告',
+          loginnerFullReports: 'Loginner完整报告',
+          selectProjectForReport: '选择报告项目',
+          allProjects: '所有项目',
+          export: '导出',
+          share: '分享',
+          print: '打印',
+          exportAsTxt: '导出为TXT',
+          exportAsCsv: '导出为CSV',
+          includeIncomeOutcome: '包含收入/支出',
+          yes: '是',
+          no: '否',
+          shareViaEmail: '通过电子邮件分享',
+          shareViaWhatsapp: '通过WhatsApp分享',
+          copyShareLink: '复制分享链接',
+          revenueAnalysis: '收入分析',
+          monthlyTotalTransactions: '月度总交易',
+          transactionTrends: '交易趋势',
+          days: '天',
+          months: '月',
+          projectBreakdown: '项目分解',
+          projectTableProject: '项目',
+          projectTableHours: '小时',
+          projectTableValue: '价值',
+          projectTableTotal: '总计',
+          sessionsLabel: '会话',
+          incomeLabel: '收入',
+          outcomeLabel: '支出',
+          profitLabel: '利润',
+          deficitLabel: '赤字',
+          distributionTimeLogged: '每个项目记录时间的分布',
+          projectLabel: '项目',
+          totalSessions: '总会话数',
+          totalTime: '总时间',
+          sessionDetails: '会话详情',
+          entries: '条目',
+          noSessionsRecordedYet: '尚未记录会话',
+          noSessionsRecorded: '未记录会话',
+          netProfit: '净利润',
+          netDeficit: '净赤字',
+          totalIncome: '总收入',
+          totalOutcome: '总支出',
+          monthLabel: '月份',
+          hoursLabel: '小时',
+          avgValueLabel: '平均价值',
+          revenueLabel: '收入'
         },
         ja: { 
           start: 'スタート', pause: '一時停止', log: '記録', settings: '設定',
@@ -8180,10 +8843,69 @@ searchInput.disabled = true;
           projectValues: 'プロジェクト価値と変換', monthlyResume: '月次レジュメ',
           totalLogs: 'プロジェクト別総ログ', today: '今日', week: '週', monthly: '月次',
           totalTime: '合計時間', sessions: 'セッション',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: '収入',
+          manualLogOutcome: '支出',
+          manualLogIncomeDescription: '収入の説明',
+          manualLogOutcomeDescription: '支出の説明',
+          topProject: '主要プロジェクト',
+          totalHours: '総時間',
+          viewDownload: '表示/ダウンロード',
+          viewDownloadDesc: '完全なレポートを表示するか、詳細データをダウンロード',
+          addManualLog: '手動ログを追加',
+          logDetails: 'ログの詳細',
+          date: '日付',
+          startTime: '開始時間',
+          endTime: '終了時間',
+          totalDuration: '合計時間',
+          description: '説明',
+          enterWorkDescription: '作業の説明を入力...',
+          incomeOptional: '収入（オプション）',
+          outcomeOptional: '支出（オプション）',
+          enterIncomeDescription: '収入の説明を入力...',
+          enterOutcomeDescription: '支出の説明を入力...',
+          saveLog: 'ログを保存',
+          monthlyReport: '月次レポート',
+          loginnerFullReports: 'Loginner完全レポート',
+          selectProjectForReport: 'レポート用プロジェクトを選択',
+          allProjects: 'すべてのプロジェクト',
+          export: 'エクスポート',
+          share: '共有',
+          print: '印刷',
+          exportAsTxt: 'TXTとしてエクスポート',
+          exportAsCsv: 'CSVとしてエクスポート',
+          includeIncomeOutcome: '収入/支出を含める',
+          yes: 'はい',
+          no: 'いいえ',
+          shareViaEmail: 'メールで共有',
+          shareViaWhatsapp: 'WhatsAppで共有',
+          copyShareLink: '共有リンクをコピー',
+          revenueAnalysis: '収益分析',
+          monthlyTotalTransactions: '月間総取引',
+          transactionTrends: '取引トレンド',
+          days: '日',
+          months: '月',
+          projectBreakdown: 'プロジェクト内訳',
+          projectTableProject: 'プロジェクト',
+          projectTableHours: '時間',
+          projectTableValue: '価値',
+          projectTableTotal: '合計',
+          sessionsLabel: 'セッション',
+          incomeLabel: '収入',
+          outcomeLabel: '支出',
+          profitLabel: '利益',
+          deficitLabel: '赤字',
+          distributionTimeLogged: '各プロジェクトの記録時間の分布',
+          projectLabel: 'プロジェクト',
+          totalSessions: '総セッション数',
+          totalTime: '総時間',
+          sessionDetails: 'セッション詳細',
+          entries: 'エントリ',
+          noSessionsRecorded: 'まだセッションが記録されていません',
+          noSessionsRecordedShort: 'セッションが記録されていません',
+          monthLabel: '月',
+          hoursLabel: '時間',
+          avgValueLabel: '平均値',
+          revenueLabel: '収益'
         },
         it: { 
           start: 'AVVIA', pause: 'PAUSA', log: 'REGISTRA', settings: 'IMPOSTAZIONI',
@@ -8191,10 +8913,73 @@ searchInput.disabled = true;
           projectValues: 'Valori e Conversione Progetti', monthlyResume: 'Riepilogo Mensile',
           totalLogs: 'Registri Totali per Progetto', today: 'Oggi', week: 'Settimana', monthly: 'Mensile',
           totalTime: 'Tempo totale', sessions: 'Sessioni',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'Entrate',
+          manualLogOutcome: 'Uscite',
+          manualLogIncomeDescription: 'Descrizione entrate',
+          manualLogOutcomeDescription: 'Descrizione uscite',
+          topProject: 'Progetto Principale',
+          totalHours: 'Ore Totali',
+          viewDownload: 'Visualizza/Scarica',
+          viewDownloadDesc: 'Visualizza report completo o scarica dati dettagliati',
+          addManualLog: 'Aggiungi Registro Manuale',
+          logDetails: 'Dettagli Registro',
+          date: 'Data',
+          startTime: 'Ora di Inizio',
+          endTime: 'Ora di Fine',
+          totalDuration: 'Durata Totale',
+          description: 'Descrizione',
+          enterWorkDescription: 'Inserisci descrizione lavoro...',
+          incomeOptional: 'Entrate (opzionale)',
+          outcomeOptional: 'Uscite (opzionale)',
+          enterIncomeDescription: 'Inserisci descrizione entrate...',
+          enterOutcomeDescription: 'Inserisci descrizione uscite...',
+          saveLog: 'Salva Registro',
+          monthlyReport: 'Report Mensile',
+          loginnerFullReports: 'Report Completi Loginner',
+          selectProjectForReport: 'Seleziona Progetto per Report',
+          allProjects: 'Tutti i Progetti',
+          export: 'Esporta',
+          share: 'Condividi',
+          print: 'Stampa',
+          exportAsTxt: 'Esporta come TXT',
+          exportAsCsv: 'Esporta come CSV',
+          includeIncomeOutcome: 'Includi entrate/uscite',
+          yes: 'Sì',
+          no: 'No',
+          shareViaEmail: 'Condividi via Email',
+          shareViaWhatsapp: 'Condividi via WhatsApp',
+          copyShareLink: 'Copia Link di Condivisione',
+          revenueAnalysis: 'Analisi dei Ricavi',
+          monthlyTotalTransactions: 'Transazioni totali mensili',
+          transactionTrends: 'Tendenze delle Transazioni',
+          days: 'Giorni',
+          months: 'Mesi',
+          projectBreakdown: 'Ripartizione Progetti',
+          projectTableProject: 'Progetto',
+          projectTableHours: 'Ore',
+          projectTableValue: 'Valore',
+          projectTableTotal: 'Totale',
+          sessionsLabel: 'Sessioni',
+          incomeLabel: 'Entrate',
+          outcomeLabel: 'Uscite',
+          profitLabel: 'Profitto',
+          deficitLabel: 'Deficit',
+          distributionTimeLogged: 'Distribuzione del tempo registrato per ogni progetto',
+          projectLabel: 'Progetto',
+          totalSessions: 'Sessioni Totali',
+          totalTime: 'Tempo Totale',
+          sessionDetails: 'Dettagli Sessione',
+          entries: 'voci',
+          noSessionsRecordedYet: 'Nessuna sessione registrata ancora',
+          noSessionsRecorded: 'Nessuna sessione registrata',
+          netProfit: 'Profitto Netto',
+          netDeficit: 'Deficit Netto',
+          totalIncome: 'Entrate Totali',
+          totalOutcome: 'Uscite Totali',
+          monthLabel: 'Mese',
+          hoursLabel: 'Ore',
+          avgValueLabel: 'Valore Medio',
+          revenueLabel: 'Ricavi'
         },
         pt: { 
           start: 'INICIAR', pause: 'PAUSAR', log: 'REGISTRAR', settings: 'CONFIGURAÇÕES',
@@ -8202,10 +8987,73 @@ searchInput.disabled = true;
           projectValues: 'Valores e Conversão de Projetos', monthlyResume: 'Resumo Mensal',
           totalLogs: 'Logs Totais por Projeto', today: 'Hoje', week: 'Semana', monthly: 'Mensal',
           totalTime: 'Tempo total', sessions: 'Sessões',
-          manualLogIncome: 'Income',
-          manualLogOutcome: 'Outcome',
-          manualLogIncomeDescription: 'Income description',
-          manualLogOutcomeDescription: 'Outcome description'
+          manualLogIncome: 'Receita',
+          manualLogOutcome: 'Despesa',
+          manualLogIncomeDescription: 'Descrição da receita',
+          manualLogOutcomeDescription: 'Descrição da despesa',
+          topProject: 'Projeto Principal',
+          totalHours: 'Horas Totais',
+          viewDownload: 'Ver/Baixar',
+          viewDownloadDesc: 'Ver relatório completo ou baixar dados detalhados',
+          addManualLog: 'Adicionar Registro Manual',
+          logDetails: 'Detalhes do Registro',
+          date: 'Data',
+          startTime: 'Hora de Início',
+          endTime: 'Hora de Término',
+          totalDuration: 'Duração Total',
+          description: 'Descrição',
+          enterWorkDescription: 'Digite a descrição do trabalho...',
+          incomeOptional: 'Receita (opcional)',
+          outcomeOptional: 'Despesa (opcional)',
+          enterIncomeDescription: 'Digite a descrição da receita...',
+          enterOutcomeDescription: 'Digite a descrição da despesa...',
+          saveLog: 'Salvar Registro',
+          monthlyReport: 'Relatório Mensal',
+          loginnerFullReports: 'Relatórios Completos do Loginner',
+          selectProjectForReport: 'Selecionar Projeto para Relatório',
+          allProjects: 'Todos os Projetos',
+          export: 'Exportar',
+          share: 'Compartilhar',
+          print: 'Imprimir',
+          exportAsTxt: 'Exportar como TXT',
+          exportAsCsv: 'Exportar como CSV',
+          includeIncomeOutcome: 'Incluir receita/despesa',
+          yes: 'Sim',
+          no: 'Não',
+          shareViaEmail: 'Compartilhar por Email',
+          shareViaWhatsapp: 'Compartilhar por WhatsApp',
+          copyShareLink: 'Copiar Link de Compartilhamento',
+          revenueAnalysis: 'Análise de Receita',
+          monthlyTotalTransactions: 'Transações totais mensais',
+          transactionTrends: 'Tendências de Transações',
+          days: 'Dias',
+          months: 'Meses',
+          projectBreakdown: 'Divisão de Projetos',
+          projectTableProject: 'Projeto',
+          projectTableHours: 'Horas',
+          projectTableValue: 'Valor',
+          projectTableTotal: 'Total',
+          sessionsLabel: 'Sessões',
+          incomeLabel: 'Receita',
+          outcomeLabel: 'Despesa',
+          profitLabel: 'Lucro',
+          deficitLabel: 'Déficit',
+          distributionTimeLogged: 'Distribuição do tempo registrado para cada projeto',
+          projectLabel: 'Projeto',
+          totalSessions: 'Sessões Totais',
+          totalTime: 'Tempo Total',
+          sessionDetails: 'Detalhes da Sessão',
+          entries: 'entradas',
+          noSessionsRecordedYet: 'Nenhuma sessão registrada ainda',
+          noSessionsRecorded: 'Nenhuma sessão registrada',
+          netProfit: 'Lucro Líquido',
+          netDeficit: 'Déficit Líquido',
+          totalIncome: 'Receita Total',
+          totalOutcome: 'Despesa Total',
+          monthLabel: 'Mês',
+          hoursLabel: 'Horas',
+          avgValueLabel: 'Valor Médio',
+          revenueLabel: 'Receita'
         }
       };
       
@@ -8257,6 +9105,16 @@ searchInput.disabled = true;
       const projectValuesTitle = document.getElementById('loginner-project-values-title');
       if (projectValuesTitle) projectValuesTitle.textContent = t.projectValues;
       
+      // Update Project Values labels
+      const monthLabel = document.getElementById('project-values-month-label');
+      if (monthLabel) monthLabel.textContent = t.monthLabel || 'Month';
+      const hoursLabel = document.getElementById('project-values-hours-label');
+      if (hoursLabel) hoursLabel.textContent = t.hoursLabel || 'Hours';
+      const avgValueLabel = document.getElementById('project-values-avg-value-label');
+      if (avgValueLabel) avgValueLabel.textContent = t.avgValueLabel || 'Avg Value';
+      const revenueLabel = document.getElementById('project-values-revenue-label');
+      if (revenueLabel) revenueLabel.textContent = t.revenueLabel || 'Revenue';
+      
       const monthlyResumeTitle = document.getElementById('loginner-monthly-resume-title');
       if (monthlyResumeTitle) monthlyResumeTitle.textContent = t.monthlyResume;
       
@@ -8272,6 +9130,347 @@ searchInput.disabled = true;
       if (manualLogIncomeDescLabel) manualLogIncomeDescLabel.textContent = t.manualLogIncomeDescription || manualLogIncomeDescLabel.textContent;
       const manualLogOutcomeDescLabel = document.getElementById('manual-log-outcome-description-label');
       if (manualLogOutcomeDescLabel) manualLogOutcomeDescLabel.textContent = t.manualLogOutcomeDescription || manualLogOutcomeDescLabel.textContent;
+      
+      // Update Top Project label
+      const topProjectContainer = document.getElementById('top-project-hours')?.parentElement;
+      if (topProjectContainer) {
+        const labels = topProjectContainer.querySelectorAll('div');
+        if (labels.length >= 2) {
+          const topProjectLabel = labels[labels.length - 1];
+          if (topProjectLabel && (topProjectLabel.textContent.includes('Top Project') || topProjectLabel.textContent === 'Top Project')) {
+            topProjectLabel.textContent = t.topProject;
+          }
+        }
+      }
+      
+      // Update Total Hours label
+      const totalHoursContainer = document.getElementById('total-project-hours')?.parentElement;
+      if (totalHoursContainer) {
+        const labels = totalHoursContainer.querySelectorAll('div');
+        if (labels.length >= 2) {
+          const totalHoursLabel = labels[labels.length - 1];
+          if (totalHoursLabel && (totalHoursLabel.textContent.includes('Total Hours') || totalHoursLabel.textContent === 'Total Hours')) {
+            totalHoursLabel.textContent = t.totalHours;
+          }
+        }
+      }
+      
+      // Update View/Download button
+      const viewDownloadBtn = document.getElementById('loginner-view-download-btn');
+      if (viewDownloadBtn) {
+        const spans = viewDownloadBtn.querySelectorAll('span');
+        if (spans.length > 0) {
+          const btnText = spans[spans.length - 1];
+          if (btnText && (btnText.textContent.includes('View/Download') || btnText.textContent === 'View/Download')) {
+            btnText.textContent = t.viewDownload;
+          }
+        } else if (viewDownloadBtn.textContent.includes('View/Download')) {
+          viewDownloadBtn.textContent = t.viewDownload;
+        }
+      }
+      
+      // Update View/Download description
+      if (viewDownloadBtn) {
+        const container = viewDownloadBtn.parentElement;
+        if (container) {
+          const descDiv = container.querySelector('div:last-child');
+          if (descDiv && descDiv.textContent.includes('View full report')) {
+            descDiv.textContent = t.viewDownloadDesc;
+          }
+        }
+      }
+      
+      // Update Add Manual Log modal title
+      const addManualLogTitle = document.querySelector('#manual-log-modal h2');
+      if (addManualLogTitle && addManualLogTitle.textContent.includes('Add Manual Log')) {
+        addManualLogTitle.textContent = t.addManualLog;
+      }
+      
+      // Update Log Details section
+      const logDetailsSection = document.querySelector('#manual-log-modal');
+      if (logDetailsSection) {
+        const logDetailsDiv = logDetailsSection.querySelector('div[style*="Log Details"]');
+        if (logDetailsDiv && logDetailsDiv.textContent.includes('Log Details')) {
+          logDetailsDiv.textContent = t.logDetails;
+        }
+      }
+      
+      // Update form labels in manual log modal
+      const manualLogModal = document.getElementById('manual-log-modal');
+      if (manualLogModal) {
+        // Date label
+        const dateInput = document.getElementById('manual-log-date');
+        if (dateInput) {
+          const dateLabel = dateInput.parentElement?.previousElementSibling;
+          if (dateLabel && dateLabel.textContent.trim() === 'Date') {
+            dateLabel.textContent = t.date;
+          }
+        }
+        
+        // Start Time label
+        const startTimeInput = document.getElementById('manual-log-start');
+        if (startTimeInput) {
+          const startTimeLabel = startTimeInput.parentElement?.previousElementSibling;
+          if (startTimeLabel && startTimeLabel.textContent.trim() === 'Start Time') {
+            startTimeLabel.textContent = t.startTime;
+          }
+        }
+        
+        // End Time label
+        const endTimeInput = document.getElementById('manual-log-end');
+        if (endTimeInput) {
+          const endTimeLabel = endTimeInput.parentElement?.previousElementSibling;
+          if (endTimeLabel && endTimeLabel.textContent.trim() === 'End Time') {
+            endTimeLabel.textContent = t.endTime;
+          }
+        }
+        
+        // Total Duration label
+        const totalDurationEl = document.getElementById('manual-log-total-duration');
+        if (totalDurationEl) {
+          const totalDurationLabel = totalDurationEl.parentElement?.querySelector('div:first-child');
+          if (totalDurationLabel && totalDurationLabel.textContent.includes('Total Duration')) {
+            totalDurationLabel.textContent = t.totalDuration;
+          }
+        }
+        
+        // Description label
+        const descriptionTextarea = document.getElementById('manual-log-description');
+        if (descriptionTextarea) {
+          const descriptionLabel = descriptionTextarea.parentElement?.previousElementSibling;
+          if (descriptionLabel && descriptionLabel.textContent.trim() === 'Description') {
+            descriptionLabel.textContent = t.description;
+          }
+        }
+      }
+      
+      // Update placeholders
+      const workDescTextarea = document.getElementById('manual-log-description');
+      if (workDescTextarea && workDescTextarea.placeholder.includes('Enter work description')) {
+        workDescTextarea.placeholder = t.enterWorkDescription;
+      }
+      
+      const incomeInput = document.getElementById('manual-log-income');
+      if (incomeInput) {
+        const incomeLabel = incomeInput.previousElementSibling;
+        if (incomeLabel && incomeLabel.textContent.includes('Income (optional)')) {
+          incomeLabel.textContent = t.incomeOptional;
+        }
+      }
+      
+      const outcomeInput = document.getElementById('manual-log-outcome');
+      if (outcomeInput) {
+        const outcomeLabel = outcomeInput.previousElementSibling;
+        if (outcomeLabel && outcomeLabel.textContent.includes('Outcome (optional)')) {
+          outcomeLabel.textContent = t.outcomeOptional;
+        }
+      }
+      
+      const incomeDescInput = document.getElementById('manual-log-income-description');
+      if (incomeDescInput && incomeDescInput.placeholder.includes('Enter income description')) {
+        incomeDescInput.placeholder = t.enterIncomeDescription;
+      }
+      
+      const outcomeDescInput = document.getElementById('manual-log-outcome-description');
+      if (outcomeDescInput && outcomeDescInput.placeholder.includes('Enter outcome description')) {
+        outcomeDescInput.placeholder = t.enterOutcomeDescription;
+      }
+      
+      // Update Save Log button
+      const saveLogBtn = document.getElementById('manual-log-save');
+      if (saveLogBtn && saveLogBtn.textContent.includes('Save Log')) {
+        saveLogBtn.textContent = t.saveLog;
+      }
+      
+      // Update Reports Modal
+      const monthlyReportTitle = document.querySelector('#loginner-reports-modal [style*="Monthly Report"]');
+      if (monthlyReportTitle && monthlyReportTitle.textContent.includes('Monthly Report')) {
+        monthlyReportTitle.textContent = t.monthlyReport;
+      }
+      
+      const loginnerFullReportsSubtitle = document.querySelector('#loginner-reports-modal [style*="Loginner Full Reports"]');
+      if (loginnerFullReportsSubtitle && loginnerFullReportsSubtitle.textContent.includes('Loginner Full Reports')) {
+        loginnerFullReportsSubtitle.textContent = t.loginnerFullReports;
+      }
+      
+      const selectProjectLabel = document.querySelector('#loginner-reports-modal label');
+      if (selectProjectLabel && selectProjectLabel.textContent.includes('Select Project for Report')) {
+        selectProjectLabel.textContent = t.selectProjectForReport;
+      }
+      
+      const allProjectsOption = document.querySelector('#report-project-select option[value="all"]');
+      if (allProjectsOption && allProjectsOption.textContent.includes('All Projects')) {
+        allProjectsOption.textContent = t.allProjects;
+      }
+      
+      const exportBtn = document.getElementById('report-download-btn');
+      if (exportBtn) {
+        const exportText = exportBtn.querySelector('span:last-child') || exportBtn;
+        if (exportText.textContent.includes('Export')) {
+          exportText.textContent = t.export;
+        }
+      }
+      
+      const shareBtn = document.getElementById('report-share-btn');
+      if (shareBtn) {
+        const shareText = shareBtn.querySelector('span:last-child') || shareBtn;
+        if (shareText.textContent.includes('Share')) {
+          shareText.textContent = t.share;
+        }
+      }
+      
+      const printBtn = document.getElementById('report-print-btn');
+      if (printBtn) {
+        const printText = printBtn.querySelector('span:last-child') || printBtn;
+        if (printText.textContent.includes('Print')) {
+          printText.textContent = t.print;
+        }
+      }
+      
+      // Update export menu items
+      const exportTxtBtn = document.querySelector('[data-export="txt"]');
+      if (exportTxtBtn && exportTxtBtn.textContent.includes('Export as TXT')) {
+        exportTxtBtn.textContent = t.exportAsTxt;
+      }
+      
+      const exportCsvBtn = document.querySelector('[data-export="csv"]');
+      if (exportCsvBtn && exportCsvBtn.textContent.includes('Export as CSV')) {
+        exportCsvBtn.textContent = t.exportAsCsv;
+      }
+      
+      const includeFinanceLabel = document.querySelector('#report-include-finance-select')?.parentElement?.previousElementSibling;
+      if (includeFinanceLabel && includeFinanceLabel.textContent.includes('Include income/outcome')) {
+        includeFinanceLabel.textContent = t.includeIncomeOutcome;
+      }
+      
+      const yesOption = document.querySelector('#report-include-finance-select option[value="yes"]');
+      if (yesOption && yesOption.textContent === 'Yes') {
+        yesOption.textContent = t.yes;
+      }
+      
+      const noOption = document.querySelector('#report-include-finance-select option[value="no"]');
+      if (noOption && noOption.textContent === 'No') {
+        noOption.textContent = t.no;
+      }
+      
+      // Update share menu items
+      const shareEmailBtn = document.querySelector('[data-share="email"]');
+      if (shareEmailBtn && shareEmailBtn.textContent.includes('Share via Email')) {
+        shareEmailBtn.textContent = t.shareViaEmail;
+      }
+      
+      const shareWhatsappBtn = document.querySelector('[data-share="whatsapp"]');
+      if (shareWhatsappBtn && shareWhatsappBtn.textContent.includes('Share via WhatsApp')) {
+        shareWhatsappBtn.textContent = t.shareViaWhatsapp;
+      }
+      
+      const copyShareLinkBtn = document.querySelector('[data-share="link"]');
+      if (copyShareLinkBtn && copyShareLinkBtn.textContent.includes('Copy Share Link')) {
+        copyShareLinkBtn.textContent = t.copyShareLink;
+      }
+      
+      // Update Revenue Analysis modal
+      const revenueAnalysisTitle = document.querySelector('#loginner-revenue-modal h2');
+      if (revenueAnalysisTitle && revenueAnalysisTitle.textContent.includes('Revenue Analysis')) {
+        revenueAnalysisTitle.textContent = t.revenueAnalysis;
+      }
+      
+      // Update Today label
+      const todayLabel = document.getElementById('today-label');
+      if (todayLabel) todayLabel.textContent = t.today;
+      
+      // Update Monthly label
+      const monthlyLabel = document.getElementById('monthly-label');
+      if (monthlyLabel) monthlyLabel.textContent = t.monthly;
+      
+      // Update Total time label
+      const totalTimeLabel = document.getElementById('total-time-label');
+      if (totalTimeLabel) totalTimeLabel.textContent = t.totalTime;
+      
+      // Update Monthly total transactions label
+      const monthlyTotalTransactionsLabel = document.getElementById('monthly-total-transactions-label');
+      if (monthlyTotalTransactionsLabel) monthlyTotalTransactionsLabel.textContent = t.monthlyTotalTransactions;
+      
+      // Update Transaction Trends label
+      const transactionTrendsLabel = document.getElementById('transaction-trends-label');
+      if (transactionTrendsLabel) transactionTrendsLabel.textContent = t.transactionTrends;
+      
+      // Update Days/Months buttons
+      const daysBtn = document.getElementById('chart-view-days');
+      if (daysBtn) daysBtn.textContent = t.days;
+      const monthsBtn = document.getElementById('chart-view-months');
+      if (monthsBtn) monthsBtn.textContent = t.months;
+      
+      // Update chart legend
+      const chartLegendIncome = document.getElementById('chart-legend-income');
+      if (chartLegendIncome) chartLegendIncome.textContent = t.manualLogIncome;
+      const chartLegendOutcome = document.getElementById('chart-legend-outcome');
+      if (chartLegendOutcome) chartLegendOutcome.textContent = t.manualLogOutcome;
+      
+      // Update Project Breakdown label
+      const projectBreakdownLabel = document.getElementById('project-breakdown-label');
+      if (projectBreakdownLabel) projectBreakdownLabel.textContent = t.projectBreakdown;
+      
+      // Update Project table headers
+      const projectTableHeaderProject = document.getElementById('project-table-header-project');
+      if (projectTableHeaderProject) projectTableHeaderProject.textContent = t.projectTableProject;
+      const projectTableHeaderHours = document.getElementById('project-table-header-hours');
+      if (projectTableHeaderHours) projectTableHeaderHours.textContent = t.projectTableHours;
+      const projectTableHeaderValue = document.getElementById('project-table-header-value');
+      if (projectTableHeaderValue) projectTableHeaderValue.textContent = t.projectTableValue;
+      const projectTableHeaderTotal = document.getElementById('project-table-header-total');
+      if (projectTableHeaderTotal) projectTableHeaderTotal.textContent = t.projectTableTotal;
+      
+      // Update Sessions label in today sessions count (format: "Sessions: 0")
+      const todaySessionsCount = document.getElementById('today-sessions-count');
+      if (todaySessionsCount) {
+        const currentText = todaySessionsCount.textContent;
+        const match = currentText.match(/(\d+)/);
+        if (match) {
+          const count = match[1];
+          todaySessionsCount.textContent = `${t.sessionsLabel}: ${count}`;
+        } else {
+          todaySessionsCount.textContent = `${t.sessionsLabel}: 0`;
+        }
+      }
+      
+      // Update Income/Outcome/Profit labels in transaction cards
+      const incomeLabelEl = document.getElementById('loginner-income-label');
+      if (incomeLabelEl) incomeLabelEl.textContent = t.incomeLabel;
+      
+      const outcomeLabelEl = document.getElementById('loginner-outcome-label');
+      if (outcomeLabelEl) outcomeLabelEl.textContent = t.outcomeLabel;
+      
+      // Update Income/Outcome labels in session list
+      const sessionIncomeLabels = document.querySelectorAll('#session-income-label, .log-money-label');
+      sessionIncomeLabels.forEach(el => {
+        if (el.textContent === 'INCOME' || el.textContent.includes('INCOME')) {
+          el.textContent = t.incomeLabel.toUpperCase();
+        }
+      });
+      
+      const sessionOutcomeLabels = document.querySelectorAll('#session-outcome-label');
+      sessionOutcomeLabels.forEach(el => {
+        if (el.textContent === 'OUTCOME' || el.textContent.includes('OUTCOME')) {
+          el.textContent = t.outcomeLabel.toUpperCase();
+        }
+      });
+      
+      // Update profit/deficit label (this is dynamic, so we'll update it when needed)
+      const profitLabelEl = document.getElementById('loginner-total-profit-label');
+      if (profitLabelEl && profitLabelEl.textContent.includes('Profit')) {
+        // Only update if it says Profit, otherwise it might be Deficit
+        const isDeficit = profitLabelEl.textContent.includes('DEFICIT') || profitLabelEl.textContent.includes('Deficit');
+        profitLabelEl.textContent = isDeficit ? t.deficitLabel : t.profitLabel;
+      }
+      
+      // Update Distribution of time logged label
+      const distributionLabel = document.getElementById('distribution-time-logged-label');
+      if (distributionLabel) distributionLabel.textContent = t.distributionTimeLogged;
+      
+      // Update View/Download description text
+      const viewDownloadDescText = document.getElementById('view-download-desc-text');
+      if (viewDownloadDescText) viewDownloadDescText.textContent = t.viewDownloadDesc;
       
       console.log('Applied Loginner language:', language);
     }
@@ -8331,6 +9530,8 @@ searchInput.disabled = true;
           plannerAdd: 'Add',
           search: 'Search clipboard items...',
           clearAll: 'Clear All',
+          clearHistory: 'Clear History',
+          clearSavedItems: 'Clear Saved Items',
           preferences: 'Preferences',
           about: 'About',
           aboutDescription: 'Tilbi is a powerful clipboard manager that helps you manage your clipboard history efficiently. With features like text editing, screenshot capture, and quick access to your clipboard history, Tilbi makes your workflow smoother.',
@@ -8370,6 +9571,8 @@ searchInput.disabled = true;
           plannerAdd: 'Agregar',
           search: 'Buscar elementos del portapapeles...',
           clearAll: 'Limpiar Todo',
+          clearHistory: 'Limpiar Historial',
+          clearSavedItems: 'Limpiar Elementos Guardados',
           preferences: 'Preferencias',
           about: 'Acerca de',
           aboutDescription: 'Tilbi es un potente gestor de portapapeles que te ayuda a gestionar tu historial de portapapeles de forma eficiente. Con funciones como edición de texto, captura de pantalla y acceso rápido a tu historial de portapapeles, Tilbi hace que tu flujo de trabajo sea más fluido.',
@@ -8409,6 +9612,8 @@ searchInput.disabled = true;
           plannerAdd: 'Ajouter',
           search: 'Rechercher des éléments du presse-papiers...',
           clearAll: 'Tout Effacer',
+          clearHistory: 'Effacer l\'Historique',
+          clearSavedItems: 'Effacer les Éléments Enregistrés',
           preferences: 'Préférences',
           about: 'À propos',
           aboutDescription: 'Tilbi est un gestionnaire de presse-papiers puissant qui vous aide à gérer votre historique de presse-papiers efficacement. Avec des fonctionnalités comme l\'édition de texte, la capture d\'écran et l\'accès rapide à votre historique de presse-papiers, Tilbi rend votre flux de travail plus fluide.',
@@ -8448,6 +9653,8 @@ searchInput.disabled = true;
           plannerAdd: 'Hinzufügen',
           search: 'Zwischenablage-Elemente suchen...',
           clearAll: 'Alles Löschen',
+          clearHistory: 'Verlauf Löschen',
+          clearSavedItems: 'Gespeicherte Elemente Löschen',
           preferences: 'Einstellungen',
           about: 'Über',
           aboutDescription: 'Tilbi ist ein leistungsstarker Zwischenablage-Manager, der Ihnen hilft, Ihren Zwischenablage-Verlauf effizient zu verwalten. Mit Funktionen wie Textbearbeitung, Screenshot-Aufnahme und schnellem Zugriff auf Ihren Zwischenablage-Verlauf macht Tilbi Ihren Arbeitsablauf reibungsloser.',
@@ -8487,6 +9694,8 @@ searchInput.disabled = true;
           plannerAdd: 'Aggiungi',
           search: 'Cerca elementi negli appunti...',
           clearAll: 'Cancella Tutto',
+          clearHistory: 'Cancella Cronologia',
+          clearSavedItems: 'Cancella Elementi Salvati',
           preferences: 'Preferenze',
           about: 'Informazioni',
           version: 'Versione',
@@ -8519,6 +9728,8 @@ searchInput.disabled = true;
           plannerAdd: 'Adicionar',
           search: 'Pesquisar itens da área de transferência...',
           clearAll: 'Limpar Tudo',
+          clearHistory: 'Limpar Histórico',
+          clearSavedItems: 'Limpar Itens Salvos',
           preferences: 'Preferências',
           about: 'Sobre',
           version: 'Versão',
@@ -8551,6 +9762,8 @@ searchInput.disabled = true;
           plannerAdd: 'Добавить',
           search: 'Поиск элементов буфера обмена...',
           clearAll: 'Очистить Все',
+          clearHistory: 'Очистить Историю',
+          clearSavedItems: 'Очистить Сохраненные Элементы',
           preferences: 'Настройки',
           about: 'О программе',
           version: 'Версия',
@@ -8583,6 +9796,8 @@ searchInput.disabled = true;
           plannerAdd: '添加',
           search: '搜索剪贴板项目...',
           clearAll: '清除全部',
+          clearHistory: '清除历史',
+          clearSavedItems: '清除已保存项目',
           preferences: '首选项',
           about: '关于',
           version: '版本',
@@ -8615,6 +9830,8 @@ searchInput.disabled = true;
           plannerAdd: '追加',
           search: 'クリップボードアイテムを検索...',
           clearAll: 'すべてクリア',
+          clearHistory: '履歴をクリア',
+          clearSavedItems: '保存されたアイテムをクリア',
           preferences: '設定',
           about: 'について',
           version: 'バージョン',
@@ -8647,6 +9864,8 @@ searchInput.disabled = true;
           plannerAdd: '추가',
           search: '클립보드 항목 검색...',
           clearAll: '모두 지우기',
+          clearHistory: '기록 지우기',
+          clearSavedItems: '저장된 항목 지우기',
           preferences: '설정',
           about: '정보',
           version: '버전',
@@ -8679,6 +9898,8 @@ searchInput.disabled = true;
           plannerAdd: 'إضافة',
           search: 'البحث في عناصر الحافظة...',
           clearAll: 'مسح الكل',
+          clearHistory: 'مسح السجل',
+          clearSavedItems: 'مسح العناصر المحفوظة',
           preferences: 'التفضيلات',
           about: 'حول',
           version: 'الإصدار',
@@ -8711,6 +9932,8 @@ searchInput.disabled = true;
           plannerAdd: 'הוסף',
           search: 'חיפוש פריטים בלוח...',
           clearAll: 'נקה הכל',
+          clearHistory: 'נקה היסטוריה',
+          clearSavedItems: 'נקה פריטים שמורים',
           preferences: 'העדפות',
           about: 'אודות',
           aboutDescription: 'Tilbi הוא מנהל לוח חזק שעוזר לך לנהל את היסטוריית הלוח שלך ביעילות. עם תכונות כמו עריכת טקסט, צילום מסך וגישה מהירה להיסטוריית הלוח שלך, Tilbi הופך את זרימת העבודה שלך לחלקה יותר.',
@@ -8750,6 +9973,8 @@ searchInput.disabled = true;
           plannerAdd: 'जोड़ें',
           search: 'क्लिपबोर्ड आइटम खोजें...',
           clearAll: 'सभी साफ़ करें',
+          clearHistory: 'इतिहास साफ़ करें',
+          clearSavedItems: 'सहेजे गए आइटम साफ़ करें',
           preferences: 'प्राथमिकताएं',
           about: 'के बारे में',
           version: 'संस्करण',
@@ -8783,6 +10008,14 @@ searchInput.disabled = true;
         savedShortcutBtn.textContent = t.saved;
       }
       document.getElementById('search-input').placeholder = t.search;
+      
+      // Update Clear button text
+      const clearCurrentBtn = document.getElementById('clear-current-btn');
+      if (clearCurrentBtn && currentTab === 'history') {
+        const isSavedView = savedShortcutBtn?.classList.contains('active');
+        clearCurrentBtn.textContent = isSavedView ? t.clearSavedItems : t.clearHistory;
+      }
+      
       if (currentTab === 'history') {
         updateHistoryView();
       }
@@ -10092,17 +11325,40 @@ searchInput.disabled = true;
       const reportData = generateReportData(selectedProject, month, year);
       const content = document.getElementById('loginner-report-content');
       
-      // Update month display
+      // Get current language and translations
+      const currentLanguage = window.currentLanguage || localStorage.getItem('tilbi-language') || 'en';
+      const localeMap = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', pt: 'pt-PT', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', ar: 'ar-SA', he: 'he-IL', hi: 'hi-IN' };
+      const locale = localeMap[currentLanguage] || 'en-US';
+      
+      // Get translations from applyLoginnerLanguage function
+      const translations = {
+        en: { projectLabel: 'Project', totalSessions: 'Total Sessions', totalTime: 'Total Time', sessionDetails: 'Session Details', entries: 'entries', noSessionsRecordedYet: 'No sessions recorded yet', noSessionsRecorded: 'No sessions recorded', netProfit: 'Net Profit', netDeficit: 'Net Deficit', totalIncome: 'Total Income', totalOutcome: 'Total Outcome', allProjects: 'All Projects' },
+        es: { projectLabel: 'Proyecto', totalSessions: 'Total de Sesiones', totalTime: 'Tiempo Total', sessionDetails: 'Detalles de Sesión', entries: 'entradas', noSessionsRecordedYet: 'No se han registrado sesiones aún', noSessionsRecorded: 'No se registraron sesiones', netProfit: 'Ganancia Neta', netDeficit: 'Déficit Neto', totalIncome: 'Ingresos Totales', totalOutcome: 'Gastos Totales', allProjects: 'Todos los Proyectos' },
+        fr: { projectLabel: 'Projet', totalSessions: 'Total des Sessions', totalTime: 'Temps Total', sessionDetails: 'Détails de Session', entries: 'entrées', noSessionsRecordedYet: 'Aucune session enregistrée pour le moment', noSessionsRecorded: 'Aucune session enregistrée', netProfit: 'Profit Net', netDeficit: 'Déficit Net', totalIncome: 'Revenus Totaux', totalOutcome: 'Dépenses Totales', allProjects: 'Tous les Projets' },
+        de: { projectLabel: 'Projekt', totalSessions: 'Gesamtsitzungen', totalTime: 'Gesamtzeit', sessionDetails: 'Sitzungsdetails', entries: 'Einträge', noSessionsRecordedYet: 'Noch keine Sitzungen aufgezeichnet', noSessionsRecorded: 'Keine Sitzungen aufgezeichnet', netProfit: 'Nettogewinn', netDeficit: 'Nettoverlust', totalIncome: 'Gesamteinnahmen', totalOutcome: 'Gesamtausgaben', allProjects: 'Alle Projekte' },
+        it: { projectLabel: 'Progetto', totalSessions: 'Sessioni Totali', totalTime: 'Tempo Totale', sessionDetails: 'Dettagli Sessione', entries: 'voci', noSessionsRecordedYet: 'Nessuna sessione registrata ancora', noSessionsRecorded: 'Nessuna sessione registrata', netProfit: 'Profitto Netto', netDeficit: 'Deficit Netto', totalIncome: 'Entrate Totali', totalOutcome: 'Uscite Totali', allProjects: 'Tutti i Progetti' },
+        pt: { projectLabel: 'Projeto', totalSessions: 'Sessões Totais', totalTime: 'Tempo Total', sessionDetails: 'Detalhes da Sessão', entries: 'entradas', noSessionsRecordedYet: 'Nenhuma sessão registrada ainda', noSessionsRecorded: 'Nenhuma sessão registrada', netProfit: 'Lucro Líquido', netDeficit: 'Déficit Líquido', totalIncome: 'Receita Total', totalOutcome: 'Despesa Total', allProjects: 'Todos os Projetos' },
+        ru: { projectLabel: 'Проект', totalSessions: 'Всего Сессий', totalTime: 'Общее Время', sessionDetails: 'Детали Сессии', entries: 'записей', noSessionsRecordedYet: 'Сессии еще не записаны', noSessionsRecorded: 'Сессии не записаны', netProfit: 'Чистая Прибыль', netDeficit: 'Чистый Дефицит', totalIncome: 'Общий Доход', totalOutcome: 'Общий Расход', allProjects: 'Все Проекты' },
+        zh: { projectLabel: '项目', totalSessions: '总会话数', totalTime: '总时间', sessionDetails: '会话详情', entries: '条目', noSessionsRecordedYet: '尚未记录会话', noSessionsRecorded: '未记录会话', netProfit: '净利润', netDeficit: '净赤字', totalIncome: '总收入', totalOutcome: '总支出', allProjects: '所有项目' },
+        ja: { projectLabel: 'プロジェクト', totalSessions: '総セッション数', totalTime: '総時間', sessionDetails: 'セッション詳細', entries: 'エントリ', noSessionsRecordedYet: 'まだセッションが記録されていません', noSessionsRecorded: 'セッションが記録されていません', netProfit: '純利益', netDeficit: '純赤字', totalIncome: '総収入', totalOutcome: '総支出', allProjects: 'すべてのプロジェクト' },
+        ko: { projectLabel: '프로젝트', totalSessions: '총 세션', totalTime: '총 시간', sessionDetails: '세션 세부사항', entries: '항목', noSessionsRecordedYet: '아직 기록된 세션이 없습니다', noSessionsRecorded: '기록된 세션이 없습니다', netProfit: '순이익', netDeficit: '순적자', totalIncome: '총 수입', totalOutcome: '총 지출', allProjects: '모든 프로젝트' },
+        ar: { projectLabel: 'المشروع', totalSessions: 'إجمالي الجلسات', totalTime: 'الوقت الإجمالي', sessionDetails: 'تفاصيل الجلسة', entries: 'إدخالات', noSessionsRecordedYet: 'لم يتم تسجيل جلسات بعد', noSessionsRecorded: 'لم يتم تسجيل جلسات', netProfit: 'صافي الربح', netDeficit: 'صافي العجز', totalIncome: 'إجمالي الدخل', totalOutcome: 'إجمالي المصروفات', allProjects: 'جميع المشاريع' },
+        he: { projectLabel: 'פרויקט', totalSessions: 'סה"כ סשנים', totalTime: 'זמן כולל', sessionDetails: 'פרטי סשן', entries: 'רשומות', noSessionsRecordedYet: 'עדיין לא נרשמו סשנים', noSessionsRecorded: 'לא נרשמו סשנים', netProfit: 'רווח נקי', netDeficit: 'גירעון נקי', totalIncome: 'סה"כ הכנסה', totalOutcome: 'סה"כ הוצאה', allProjects: 'כל הפרויקטים' },
+        hi: { projectLabel: 'परियोजना', totalSessions: 'कुल सत्र', totalTime: 'कुल समय', sessionDetails: 'सत्र विवरण', entries: 'प्रविष्टियां', noSessionsRecordedYet: 'अभी तक कोई सत्र दर्ज नहीं किया गया', noSessionsRecorded: 'कोई सत्र दर्ज नहीं किया गया', netProfit: 'शुद्ध लाभ', netDeficit: 'शुद्ध घाटा', totalIncome: 'कुल आय', totalOutcome: 'कुल व्यय', allProjects: 'सभी परियोजनाएं' }
+      };
+      const t = translations[currentLanguage] || translations.en;
+      
+      // Update month display with locale
       const monthDisplay = document.getElementById('current-month-display');
       if (monthDisplay) {
         const displayMonth = month !== null ? month : currentReportMonth;
         const displayYear = year !== null ? year : currentReportYear;
         const displayDate = new Date(displayYear, displayMonth);
-        monthDisplay.textContent = displayDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        monthDisplay.textContent = displayDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
       }
       
       if (content) {
-        const projectTitle = selectedProject === 'all' ? 'All Projects' : selectedProject;
+        const projectTitle = selectedProject === 'all' ? t.allProjects : selectedProject;
         const sessionCards = reportData.sessions.length > 0
           ? reportData.sessions.map(session => `
               <div style="background: rgba(30, 64, 175, 0.55); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px; padding: 12px; display: grid; gap: 6px; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.25);">
@@ -10121,43 +11377,43 @@ searchInput.disabled = true;
                 ${(session.income || session.outcome) ? `
                   <div style="margin-top:4px;font-size:11px;">
                     ${session.income ? `
-                      <div style="color:#16a34a;font-weight:600;margin-bottom:2px;">INCOME: +${Number(session.income).toFixed(2)} ${session.incomeDescription ? '- ' + session.incomeDescription : ''}</div>
+                      <div style="color:#16a34a;font-weight:600;margin-bottom:2px;">${(window.currentLanguage || localStorage.getItem('tilbi-language') || 'en') === 'en' ? 'INCOME' : (window.loginnerTranslations?.[window.currentLanguage || localStorage.getItem('tilbi-language') || 'en']?.incomeLabel || 'INCOME')}: +${Number(session.income).toFixed(2)} ${session.incomeDescription ? '- ' + session.incomeDescription : ''}</div>
                     ` : ''}
                     ${session.outcome ? `
-                      <div style="color:#dc2626;font-weight:600;">OUTCOME: -${Number(session.outcome).toFixed(2)} ${session.outcomeDescription ? '- ' + session.outcomeDescription : ''}</div>
+                      <div style="color:#dc2626;font-weight:600;">${(window.currentLanguage || localStorage.getItem('tilbi-language') || 'en') === 'en' ? 'OUTCOME' : (window.loginnerTranslations?.[window.currentLanguage || localStorage.getItem('tilbi-language') || 'en']?.outcomeLabel || 'OUTCOME')}: -${Number(session.outcome).toFixed(2)} ${session.outcomeDescription ? '- ' + session.outcomeDescription : ''}</div>
                     ` : ''}
                   </div>
                 ` : ''}
               </div>
             `).join('')
-          : '<div style="color: rgba(148, 163, 184, 0.85); text-align: center; padding: 18px; font-size: 12px; border-radius: 12px; border: 1px dashed rgba(148, 163, 184, 0.35); background: rgba(15, 23, 42, 0.35);">No sessions recorded yet</div>';
+          : `<div style="color: rgba(148, 163, 184, 0.85); text-align: center; padding: 18px; font-size: 12px; border-radius: 12px; border: 1px dashed rgba(148, 163, 184, 0.35); background: rgba(15, 23, 42, 0.35);">${t.noSessionsRecordedYet}</div>`;
 
         content.innerHTML = `
           <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
             <div style="color: rgba(148, 163, 184, 0.95); font-size: 12px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;">${reportData.month}</div>
-            <div style="background: rgba(59, 130, 246, 0.15); color: #f1f5f9; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0.3px;">Project: ${projectTitle}</div>
+            <div style="background: rgba(59, 130, 246, 0.15); color: #f1f5f9; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0.3px;">${t.projectLabel}: ${projectTitle}</div>
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
             <div style="background: rgba(59, 130, 246, 0.18); border-radius: 14px; padding: 16px; border: 1px solid rgba(59, 130, 246, 0.35); box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.3);">
-              <div style="color: rgba(148, 163, 184, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">Total Sessions</div>
+              <div style="color: rgba(148, 163, 184, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">${t.totalSessions}</div>
               <div style="color: #f8fafc; font-size: 28px; font-weight: 800; line-height: 1;">${reportData.totalSessions}</div>
             </div>
             <div style="background: rgba(59, 130, 246, 0.18); border-radius: 14px; padding: 16px; border: 1px solid rgba(59, 130, 246, 0.35); box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.3);">
-              <div style="color: rgba(148, 163, 184, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">Total Time</div>
+              <div style="color: rgba(148, 163, 184, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">${t.totalTime}</div>
               <div style="color: #f8fafc; font-size: 20px; font-family: 'Roboto Mono', monospace; font-weight: 700;">${reportData.totalTime}</div>
             </div>
             ${reportData.totalIncome !== 0 || reportData.totalOutcome !== 0 ? `
               <div style="background: rgba(22, 163, 74, 0.18); border-radius: 14px; padding: 16px; border: 1px solid rgba(22, 163, 74, 0.35); box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.3);">
-                <div style="color: rgba(187, 247, 208, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">Total Income</div>
+                <div style="color: rgba(187, 247, 208, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">${t.totalIncome}</div>
                 <div style="color: #bbf7d0; font-size: 22px; font-weight: 800; line-height: 1;">+${reportData.totalIncome.toFixed(2)} $</div>
               </div>
               <div style="background: rgba(248, 113, 113, 0.18); border-radius: 14px; padding: 16px; border: 1px solid rgba(248, 113, 113, 0.35); box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.3);">
-                <div style="color: rgba(254, 202, 202, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">Total Outcome</div>
+                <div style="color: rgba(254, 202, 202, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">${t.totalOutcome}</div>
                 <div style="color: #fca5a5; font-size: 22px; font-weight: 800; line-height: 1;">-${reportData.totalOutcome.toFixed(2)} $</div>
               </div>
               <div style="background: rgba(59, 130, 246, 0.18); border-radius: 14px; padding: 16px; border: 1px solid rgba(59, 130, 246, 0.35); box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.3);">
-                <div style="color: rgba(148, 163, 184, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">${reportData.netResult >= 0 ? 'Net Profit' : 'Net Deficit'}</div>
+                <div style="color: rgba(148, 163, 184, 0.95); font-size: 11px; font-weight: 700; letter-spacing: 0.6px; margin-bottom: 6px;">${reportData.netResult >= 0 ? t.netProfit : t.netDeficit}</div>
                 <div style="color: ${reportData.netResult >= 0 ? '#bbf7d0' : '#fca5a5'}; font-size: 22px; font-weight: 800; line-height: 1;">${reportData.netResult >= 0 ? '+' : ''}${reportData.netResult.toFixed(2)} $</div>
               </div>
             ` : ''}
@@ -10165,8 +11421,8 @@ searchInput.disabled = true;
 
           <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 16px; padding: 16px; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
-              <h3 style="color: #f8fafc; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; margin: 0;">Session Details</h3>
-              <span style="color: rgba(148, 163, 184, 0.85); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;">${reportData.sessions.length} entries</span>
+              <h3 style="color: #f8fafc; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; margin: 0;">${t.sessionDetails}</h3>
+              <span style="color: rgba(148, 163, 184, 0.85); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;">${reportData.sessions.length} ${t.entries}</span>
             </div>
             <div style="max-height: 280px; overflow-y: auto; display: grid; gap: 12px; padding-right: 4px;">
               ${sessionCards}
@@ -10347,6 +11603,25 @@ searchInput.disabled = true;
       }, 2000);
     }
     function printReport(reportData, projectTitle) {
+      const currentLanguage = window.currentLanguage || localStorage.getItem('tilbi-language') || 'en';
+      const translations = {
+        en: { projectLabel: 'Project', totalSessions: 'Total Sessions', totalTime: 'Total Time', sessionDetails: 'Session Details', noSessionsRecorded: 'No sessions recorded', allProjects: 'All Projects', month: 'Month' },
+        es: { projectLabel: 'Proyecto', totalSessions: 'Total de Sesiones', totalTime: 'Tiempo Total', sessionDetails: 'Detalles de Sesión', noSessionsRecorded: 'No se registraron sesiones', allProjects: 'Todos los Proyectos', month: 'Mes' },
+        fr: { projectLabel: 'Projet', totalSessions: 'Total des Sessions', totalTime: 'Temps Total', sessionDetails: 'Détails de Session', noSessionsRecorded: 'Aucune session enregistrée', allProjects: 'Tous les Projets', month: 'Mois' },
+        de: { projectLabel: 'Projekt', totalSessions: 'Gesamtsitzungen', totalTime: 'Gesamtzeit', sessionDetails: 'Sitzungsdetails', noSessionsRecorded: 'Keine Sitzungen aufgezeichnet', allProjects: 'Alle Projekte', month: 'Monat' },
+        it: { projectLabel: 'Progetto', totalSessions: 'Sessioni Totali', totalTime: 'Tempo Totale', sessionDetails: 'Dettagli Sessione', noSessionsRecorded: 'Nessuna sessione registrata', allProjects: 'Tutti i Progetti', month: 'Mese' },
+        pt: { projectLabel: 'Projeto', totalSessions: 'Sessões Totais', totalTime: 'Tempo Total', sessionDetails: 'Detalhes da Sessão', noSessionsRecorded: 'Nenhuma sessão registrada', allProjects: 'Todos os Projetos', month: 'Mês' },
+        ru: { projectLabel: 'Проект', totalSessions: 'Всего Сессий', totalTime: 'Общее Время', sessionDetails: 'Детали Сессии', noSessionsRecorded: 'Сессии не записаны', allProjects: 'Все Проекты', month: 'Месяц' },
+        zh: { projectLabel: '项目', totalSessions: '总会话数', totalTime: '总时间', sessionDetails: '会话详情', noSessionsRecorded: '未记录会话', allProjects: '所有项目', month: '月份' },
+        ja: { projectLabel: 'プロジェクト', totalSessions: '総セッション数', totalTime: '総時間', sessionDetails: 'セッション詳細', noSessionsRecorded: 'セッションが記録されていません', allProjects: 'すべてのプロジェクト', month: '月' },
+        ko: { projectLabel: '프로젝트', totalSessions: '총 세션', totalTime: '총 시간', sessionDetails: '세션 세부사항', noSessionsRecorded: '기록된 세션이 없습니다', allProjects: '모든 프로젝트', month: '월' },
+        ar: { projectLabel: 'المشروع', totalSessions: 'إجمالي الجلسات', totalTime: 'الوقت الإجمالي', sessionDetails: 'تفاصيل الجلسة', noSessionsRecorded: 'لم يتم تسجيل جلسات', allProjects: 'جميع المشاريع', month: 'الشهر' },
+        he: { projectLabel: 'פרויקט', totalSessions: 'סה"כ סשנים', totalTime: 'זמן כולל', sessionDetails: 'פרטי סשן', noSessionsRecorded: 'לא נרשמו סשנים', allProjects: 'כל הפרויקטים', month: 'חודש' },
+        hi: { projectLabel: 'परियोजना', totalSessions: 'कुल सत्र', totalTime: 'कुल समय', sessionDetails: 'सत्र विवरण', noSessionsRecorded: 'कोई सत्र दर्ज नहीं किया गया', allProjects: 'सभी परियोजनाएं', month: 'महीना' }
+      };
+      const t = translations[currentLanguage] || translations.en;
+      const displayProjectTitle = projectTitle === 'All Projects' ? t.allProjects : projectTitle;
+      
       const reportHtml = `<!DOCTYPE html>
         <html>
           <head>
@@ -10363,17 +11638,17 @@ searchInput.disabled = true;
           </head>
           <body>
             <h1>Loginner Monthly Report</h1>
-            <div><strong>Month:</strong> ${reportData.month}</div>
-            <div><strong>Project:</strong> ${projectTitle}</div>
-            <div><strong>Total Sessions:</strong> ${reportData.totalSessions}</div>
-            <div><strong>Total Time:</strong> ${reportData.totalTime}</div>
-            <h2>Session Details</h2>
+            <div><strong>${t.month}:</strong> ${reportData.month}</div>
+            <div><strong>${t.projectLabel}:</strong> ${displayProjectTitle}</div>
+            <div><strong>${t.totalSessions}:</strong> ${reportData.totalSessions}</div>
+            <div><strong>${t.totalTime}:</strong> ${reportData.totalTime}</div>
+            <h2>${t.sessionDetails}</h2>
             <table>
               <thead>
                 <tr><th>Date</th><th>Start</th><th>End</th><th>Duration</th><th>Description</th></tr>
               </thead>
               <tbody>
-                ${reportData.sessions.map(session => `<tr><td>${session.date}</td><td>${session.startTime}</td><td>${session.endTime}</td><td>${session.duration}</td><td>${session.description}</td></tr>`).join('') || '<tr><td colspan="5">No sessions recorded</td></tr>'}
+                ${reportData.sessions.map(session => `<tr><td>${session.date}</td><td>${session.startTime}</td><td>${session.endTime}</td><td>${session.duration}</td><td>${session.description}</td></tr>`).join('') || `<tr><td colspan="5">${t.noSessionsRecorded}</td></tr>`}
               </tbody>
             </table>
           </body>
@@ -10453,6 +11728,34 @@ searchInput.disabled = true;
             </div>
           </div>
         `;
+        
+        // CRITICAL FIX: Enable input IMMEDIATELY after HTML is set, BEFORE setTimeout delay
+        // This ensures the input is typeable right away, not after 10-20 seconds
+        const enableInputNow = () => {
+          const nameInput = document.getElementById('new-project-name');
+          if (nameInput) {
+            const addBtn = document.getElementById('add-project-btn');
+            const isEditing = addBtn && addBtn.dataset.editing === 'true' && addBtn.dataset.project;
+            
+            // Only enable if NOT editing
+            if (!isEditing) {
+              nameInput.disabled = false;
+              nameInput.readOnly = false;
+              nameInput.style.opacity = '1';
+              nameInput.style.pointerEvents = 'auto';
+              nameInput.style.cursor = 'text';
+              nameInput.removeAttribute('disabled');
+              nameInput.removeAttribute('readonly');
+              nameInput.style.userSelect = 'text';
+              nameInput.style.webkitUserSelect = 'text';
+              nameInput.style.display = 'block';
+              nameInput.style.visibility = 'visible';
+            }
+          }
+        };
+        
+        // Enable immediately (runs synchronously right after HTML is set, before setTimeout)
+        enableInputNow();
       }
       
       openModal('loginner-revenue-modal');
@@ -10791,8 +12094,65 @@ searchInput.disabled = true;
           };
         }
 
-        // Initialize Titler UI
+        // CRITICAL FIX: Enable input IMMEDIATELY before any other code runs
+        // This must happen BEFORE syncTitlerSettingsUI() which might disable it
+        const nameInput = document.getElementById('new-project-name');
+        if (nameInput) {
+          // Force enable immediately - no delay
+          nameInput.disabled = false;
+          nameInput.readOnly = false;
+          nameInput.style.opacity = '1';
+          nameInput.style.pointerEvents = 'auto';
+          nameInput.style.cursor = 'text';
+          nameInput.removeAttribute('disabled');
+          nameInput.removeAttribute('readonly');
+          nameInput.style.userSelect = 'text';
+          nameInput.style.webkitUserSelect = 'text';
+          console.log('✓ Project name input enabled IMMEDIATELY');
+        }
+        
+        // Initialize Titler UI (this might try to disable if editing, but we'll re-enable after)
         syncTitlerSettingsUI();
+        
+        // CRITICAL FIX: Re-enable input after syncTitlerSettingsUI in case it disabled it
+        // Run multiple times to ensure it stays enabled
+        const ensureInputEnabled = () => {
+          const nameInput = document.getElementById('new-project-name');
+          if (nameInput) {
+            const addBtn = document.getElementById('add-project-btn');
+            const isEditing = addBtn && addBtn.dataset.editing === 'true' && addBtn.dataset.project;
+            
+            // Only enable if NOT editing (when editing, input should be disabled)
+            if (!isEditing) {
+              nameInput.disabled = false;
+              nameInput.readOnly = false;
+              nameInput.style.opacity = '1';
+              nameInput.style.pointerEvents = 'auto';
+              nameInput.style.cursor = 'text';
+              nameInput.removeAttribute('disabled');
+              nameInput.removeAttribute('readonly');
+              nameInput.style.userSelect = 'text';
+              nameInput.style.webkitUserSelect = 'text';
+              
+              // Try to focus
+              try {
+                nameInput.focus();
+              } catch (e) {
+                // Ignore focus errors
+              }
+            }
+          }
+        };
+        
+        // Run immediately
+        ensureInputEnabled();
+        
+        // Run again after a tiny delay to catch any async operations
+        setTimeout(ensureInputEnabled, 0);
+        setTimeout(ensureInputEnabled, 10);
+        setTimeout(ensureInputEnabled, 50);
+        setTimeout(ensureInputEnabled, 100);
+        
         // Also apply Titler state once on load so the timer background reflects current settings
         try { applyTitlerState({ skipUI: true }); } catch (e) { console.warn('Initial Titler apply failed', e); }
 
@@ -10951,7 +12311,73 @@ searchInput.disabled = true;
           };
         }
 
+        // CRITICAL FIX: Enable input IMMEDIATELY after HTML is set, before setTimeout delay
+        // This ensures the input is typeable right away, not after 10-20 seconds
+        const enableInputNow = () => {
+          const nameInput = document.getElementById('new-project-name');
+          if (nameInput) {
+            const addBtn = document.getElementById('add-project-btn');
+            const isEditing = addBtn && addBtn.dataset.editing === 'true' && addBtn.dataset.project;
+            
+            // Only enable if NOT editing
+            if (!isEditing) {
+              nameInput.disabled = false;
+              nameInput.readOnly = false;
+              nameInput.style.opacity = '1';
+              nameInput.style.pointerEvents = 'auto';
+              nameInput.style.cursor = 'text';
+              nameInput.removeAttribute('disabled');
+              nameInput.removeAttribute('readonly');
+              nameInput.style.userSelect = 'text';
+              nameInput.style.webkitUserSelect = 'text';
+              nameInput.style.display = 'block';
+              nameInput.style.visibility = 'visible';
+            }
+          }
+        };
+        
+        // Enable immediately (runs synchronously right after HTML is set, before setTimeout)
+        enableInputNow();
+
       }, 100);
+      
+      // CRITICAL FIX: Enable input immediately after HTML is set, before any async operations
+      // This ensures the input is typeable right away, not after 10-20 seconds
+      const enableInputImmediately = () => {
+        const nameInput = document.getElementById('new-project-name');
+        if (nameInput) {
+          const addBtn = document.getElementById('add-project-btn');
+          const isEditing = addBtn && addBtn.dataset.editing === 'true' && addBtn.dataset.project;
+          
+          // Only enable if NOT editing
+          if (!isEditing) {
+            nameInput.disabled = false;
+            nameInput.readOnly = false;
+            nameInput.style.opacity = '1';
+            nameInput.style.pointerEvents = 'auto';
+            nameInput.style.cursor = 'text';
+            nameInput.removeAttribute('disabled');
+            nameInput.removeAttribute('readonly');
+            nameInput.style.userSelect = 'text';
+            nameInput.style.webkitUserSelect = 'text';
+            nameInput.style.display = 'block';
+            nameInput.style.visibility = 'visible';
+          }
+        }
+      };
+      
+      // Enable immediately (runs right after HTML is set)
+      enableInputImmediately();
+      
+      // Re-enable multiple times to catch any code that might disable it
+      setTimeout(enableInputImmediately, 0);
+      setTimeout(enableInputImmediately, 5);
+      setTimeout(enableInputImmediately, 10);
+      setTimeout(enableInputImmediately, 20);
+      setTimeout(enableInputImmediately, 50);
+      setTimeout(enableInputImmediately, 100);
+      setTimeout(enableInputImmediately, 200);
+      setTimeout(enableInputImmediately, 500);
       
       // Initialize Google Drive UI state
       setTimeout(() => {
@@ -11568,7 +12994,24 @@ searchInput.disabled = true;
       const sessionCountElements = document.querySelectorAll('div[style*="color: #666"][style*="font-size: 10px"]');
       sessionCountElements.forEach(el => {
         if (el.textContent && el.textContent.includes('Sessions:')) {
-          el.textContent = `Sessions: ${todaySessions.length}`;
+          const currentLanguage = window.currentLanguage || localStorage.getItem('tilbi-language') || 'en';
+          const translations = {
+            en: { sessionsLabel: 'Sessions' },
+            es: { sessionsLabel: 'Sesiones' },
+            fr: { sessionsLabel: 'Sessions' },
+            de: { sessionsLabel: 'Sitzungen' },
+            it: { sessionsLabel: 'Sessioni' },
+            pt: { sessionsLabel: 'Sessões' },
+            ru: { sessionsLabel: 'Сессии' },
+            zh: { sessionsLabel: '会话' },
+            ja: { sessionsLabel: 'セッション' },
+            ko: { sessionsLabel: '세션' },
+            ar: { sessionsLabel: 'جلسات' },
+            he: { sessionsLabel: 'סשנים' },
+            hi: { sessionsLabel: 'सत्र' }
+          };
+          const t = translations[currentLanguage] || translations.en;
+          el.textContent = `${t.sessionsLabel}: ${todaySessions.length}`;
         }
       });
       
@@ -11862,7 +13305,24 @@ searchInput.disabled = true;
       const sessionCount = todaySessions.length + (isTracking ? 1 : 0);
       const todaySessionsCount = document.getElementById('today-sessions-count');
       if (todaySessionsCount) {
-        todaySessionsCount.textContent = `Sessions: ${sessionCount}`;
+        const currentLanguage = window.currentLanguage || localStorage.getItem('tilbi-language') || 'en';
+        const translations = {
+          en: { sessionsLabel: 'Sessions' },
+          es: { sessionsLabel: 'Sesiones' },
+          fr: { sessionsLabel: 'Sessions' },
+          de: { sessionsLabel: 'Sitzungen' },
+          it: { sessionsLabel: 'Sessioni' },
+          pt: { sessionsLabel: 'Sessões' },
+          ru: { sessionsLabel: 'Сессии' },
+          zh: { sessionsLabel: '会话' },
+          ja: { sessionsLabel: 'セッション' },
+          ko: { sessionsLabel: '세션' },
+          ar: { sessionsLabel: 'جلسات' },
+          he: { sessionsLabel: 'סשנים' },
+          hi: { sessionsLabel: 'सत्र' }
+        };
+        const t = translations[currentLanguage] || translations.en;
+        todaySessionsCount.textContent = `${t.sessionsLabel}: ${sessionCount}`;
       }
     }
     
@@ -12038,6 +13498,14 @@ searchInput.disabled = true;
       const pieChartContainer = document.querySelector('.pie-chart-container');
         if (!pieChartContainer) {
           console.log('No pie chart container found - skipping update');
+          // Try again after a short delay in case DOM isn't ready
+          setTimeout(() => {
+            const retryContainer = document.querySelector('.pie-chart-container');
+            if (retryContainer) {
+              console.log('Pie chart container found on retry, updating...');
+              updateLogsByProject();
+            }
+          }, 100);
           return;
         }
         
@@ -12115,9 +13583,9 @@ searchInput.disabled = true;
           const pieChart = document.getElementById('dynamic-pie-chart');
           const percentagesContainer = document.getElementById('chart-percentages');
           
-          if (pieChart && conicGradient) {
+          if (pieChart && conicGradient && conicGradient.trim() !== '') {
               pieChart.style.background = `conic-gradient(${conicGradient})`;
-              console.log('Pie chart updated successfully');
+              console.log('Pie chart updated successfully with gradient:', conicGradient.substring(0, 50) + '...');
               
               // Add percentage labels
               if (percentagesContainer && totalHours > 0) {
@@ -12164,6 +13632,9 @@ searchInput.disabled = true;
             if (percentagesContainer) {
               percentagesContainer.innerHTML = '';
             }
+            console.log('Pie chart: No data available, showing empty state');
+          } else {
+            console.log('Pie chart element not found');
           }
         } catch (err) {
           console.log('Could not update pie chart:', err);
@@ -12596,7 +14067,7 @@ searchInput.disabled = true;
             <div class="log-card-money" style="margin-top: 4px; font-size: 11px; text-align: left;">
               ${income && income !== 0 ? `
                 <div class="log-money-row log-money-income">
-                  <span class="log-money-label">INCOME</span>
+                  <span class="log-money-label" id="session-income-label">INCOME</span>
                   <span class="log-money-description">${incomeDesc || ''}</span>
                   <span class="log-money-separator"></span>
                   <span class="log-money-amount">+${income.toFixed(2)} $</span>
@@ -12664,7 +14135,24 @@ searchInput.disabled = true;
         profitTotalValEl.style.color = profit >= 0 ? '#16a34a' : '#dc2626';
       }
       if (profitLabelEl) {
-        profitLabelEl.textContent = profit >= 0 ? 'PROFIT' : 'DEFICIT';
+        const currentLanguage = window.currentLanguage || localStorage.getItem('tilbi-language') || 'en';
+        const translations = {
+          en: { profitLabel: 'PROFIT', deficitLabel: 'DEFICIT' },
+          es: { profitLabel: 'GANANCIA', deficitLabel: 'DÉFICIT' },
+          fr: { profitLabel: 'PROFIT', deficitLabel: 'DÉFICIT' },
+          de: { profitLabel: 'GEWINN', deficitLabel: 'DEFIZIT' },
+          it: { profitLabel: 'PROFITTO', deficitLabel: 'DEFICIT' },
+          pt: { profitLabel: 'LUCRO', deficitLabel: 'DÉFICIT' },
+          ru: { profitLabel: 'ПРИБЫЛЬ', deficitLabel: 'ДЕФИЦИТ' },
+          zh: { profitLabel: '利润', deficitLabel: '赤字' },
+          ja: { profitLabel: '利益', deficitLabel: '赤字' },
+          ko: { profitLabel: '이익', deficitLabel: '적자' },
+          ar: { profitLabel: 'الربح', deficitLabel: 'العجز' },
+          he: { profitLabel: 'רווח', deficitLabel: 'גירעון' },
+          hi: { profitLabel: 'लाभ', deficitLabel: 'घाटा' }
+        };
+        const t = translations[currentLanguage] || translations.en;
+        profitLabelEl.textContent = profit >= 0 ? t.profitLabel : t.deficitLabel;
       }
       
       // Update transaction trends chart
@@ -13027,12 +14515,30 @@ searchInput.disabled = true;
     }
     
     function downloadReport(format = 'txt', cachedReportData = null, cachedProjectTitle = null) {
+      const currentLanguage = window.currentLanguage || localStorage.getItem('tilbi-language') || 'en';
+      const translations = {
+        en: { projectLabel: 'Project', totalSessions: 'Total Sessions', totalTime: 'Total Time', sessionDetails: 'Session Details', noSessionsRecorded: 'No sessions recorded', allProjects: 'All Projects', summary: 'SUMMARY', totalIncome: 'Total Income', totalOutcome: 'Total Outcome', netProfit: 'Net Profit', netDeficit: 'Net Deficit', date: 'Date', time: 'Time', duration: 'Duration', category: 'Category', description: 'Description', income: 'Income', outcome: 'Outcome' },
+        es: { projectLabel: 'Proyecto', totalSessions: 'Total de Sesiones', totalTime: 'Tiempo Total', sessionDetails: 'Detalles de Sesión', noSessionsRecorded: 'No se registraron sesiones', allProjects: 'Todos los Proyectos', summary: 'RESUMEN', totalIncome: 'Ingresos Totales', totalOutcome: 'Gastos Totales', netProfit: 'Ganancia Neta', netDeficit: 'Déficit Neto', date: 'Fecha', time: 'Hora', duration: 'Duración', category: 'Categoría', description: 'Descripción', income: 'Ingreso', outcome: 'Gasto' },
+        fr: { projectLabel: 'Projet', totalSessions: 'Total des Sessions', totalTime: 'Temps Total', sessionDetails: 'Détails de Session', noSessionsRecorded: 'Aucune session enregistrée', allProjects: 'Tous les Projets', summary: 'RÉSUMÉ', totalIncome: 'Revenus Totaux', totalOutcome: 'Dépenses Totales', netProfit: 'Profit Net', netDeficit: 'Déficit Net', date: 'Date', time: 'Heure', duration: 'Durée', category: 'Catégorie', description: 'Description', income: 'Revenu', outcome: 'Dépense' },
+        de: { projectLabel: 'Projekt', totalSessions: 'Gesamtsitzungen', totalTime: 'Gesamtzeit', sessionDetails: 'Sitzungsdetails', noSessionsRecorded: 'Keine Sitzungen aufgezeichnet', allProjects: 'Alle Projekte', summary: 'ZUSAMMENFASSUNG', totalIncome: 'Gesamteinnahmen', totalOutcome: 'Gesamtausgaben', netProfit: 'Nettogewinn', netDeficit: 'Nettoverlust', date: 'Datum', time: 'Zeit', duration: 'Dauer', category: 'Kategorie', description: 'Beschreibung', income: 'Einnahme', outcome: 'Ausgabe' },
+        it: { projectLabel: 'Progetto', totalSessions: 'Sessioni Totali', totalTime: 'Tempo Totale', sessionDetails: 'Dettagli Sessione', noSessionsRecorded: 'Nessuna sessione registrata', allProjects: 'Tutti i Progetti', summary: 'RIEPILOGO', totalIncome: 'Entrate Totali', totalOutcome: 'Uscite Totali', netProfit: 'Profitto Netto', netDeficit: 'Deficit Netto', date: 'Data', time: 'Ora', duration: 'Durata', category: 'Categoria', description: 'Descrizione', income: 'Entrata', outcome: 'Uscita' },
+        pt: { projectLabel: 'Projeto', totalSessions: 'Sessões Totais', totalTime: 'Tempo Total', sessionDetails: 'Detalhes da Sessão', noSessionsRecorded: 'Nenhuma sessão registrada', allProjects: 'Todos os Projetos', summary: 'RESUMO', totalIncome: 'Receita Total', totalOutcome: 'Despesa Total', netProfit: 'Lucro Líquido', netDeficit: 'Déficit Líquido', date: 'Data', time: 'Hora', duration: 'Duração', category: 'Categoria', description: 'Descrição', income: 'Receita', outcome: 'Despesa' },
+        ru: { projectLabel: 'Проект', totalSessions: 'Всего Сессий', totalTime: 'Общее Время', sessionDetails: 'Детали Сессии', noSessionsRecorded: 'Сессии не записаны', allProjects: 'Все Проекты', summary: 'СВОДКА', totalIncome: 'Общий Доход', totalOutcome: 'Общий Расход', netProfit: 'Чистая Прибыль', netDeficit: 'Чистый Дефицит', date: 'Дата', time: 'Время', duration: 'Длительность', category: 'Категория', description: 'Описание', income: 'Доход', outcome: 'Расход' },
+        zh: { projectLabel: '项目', totalSessions: '总会话数', totalTime: '总时间', sessionDetails: '会话详情', noSessionsRecorded: '未记录会话', allProjects: '所有项目', summary: '摘要', totalIncome: '总收入', totalOutcome: '总支出', netProfit: '净利润', netDeficit: '净赤字', date: '日期', time: '时间', duration: '持续时间', category: '类别', description: '描述', income: '收入', outcome: '支出' },
+        ja: { projectLabel: 'プロジェクト', totalSessions: '総セッション数', totalTime: '総時間', sessionDetails: 'セッション詳細', noSessionsRecorded: 'セッションが記録されていません', allProjects: 'すべてのプロジェクト', summary: '要約', totalIncome: '総収入', totalOutcome: '総支出', netProfit: '純利益', netDeficit: '純赤字', date: '日付', time: '時間', duration: '期間', category: 'カテゴリ', description: '説明', income: '収入', outcome: '支出' },
+        ko: { projectLabel: '프로젝트', totalSessions: '총 세션', totalTime: '총 시간', sessionDetails: '세션 세부사항', noSessionsRecorded: '기록된 세션이 없습니다', allProjects: '모든 프로젝트', summary: '요약', totalIncome: '총 수입', totalOutcome: '총 지출', netProfit: '순이익', netDeficit: '순적자', date: '날짜', time: '시간', duration: '지속 시간', category: '카테고리', description: '설명', income: '수입', outcome: '지출' },
+        ar: { projectLabel: 'المشروع', totalSessions: 'إجمالي الجلسات', totalTime: 'الوقت الإجمالي', sessionDetails: 'تفاصيل الجلسة', noSessionsRecorded: 'لم يتم تسجيل جلسات', allProjects: 'جميع المشاريع', summary: 'ملخص', totalIncome: 'إجمالي الدخل', totalOutcome: 'إجمالي المصروفات', netProfit: 'صافي الربح', netDeficit: 'صافي العجز', date: 'التاريخ', time: 'الوقت', duration: 'المدة', category: 'الفئة', description: 'الوصف', income: 'الدخل', outcome: 'المصروفات' },
+        he: { projectLabel: 'פרויקט', totalSessions: 'סה"כ סשנים', totalTime: 'זמן כולל', sessionDetails: 'פרטי סשן', noSessionsRecorded: 'לא נרשמו סשנים', allProjects: 'כל הפרויקטים', summary: 'סיכום', totalIncome: 'סה"כ הכנסה', totalOutcome: 'סה"כ הוצאה', netProfit: 'רווח נקי', netDeficit: 'גירעון נקי', date: 'תאריך', time: 'שעה', duration: 'משך', category: 'קטגוריה', description: 'תיאור', income: 'הכנסה', outcome: 'הוצאה' },
+        hi: { projectLabel: 'परियोजना', totalSessions: 'कुल सत्र', totalTime: 'कुल समय', sessionDetails: 'सत्र विवरण', noSessionsRecorded: 'कोई सत्र दर्ज नहीं किया गया', allProjects: 'सभी परियोजनाएं', summary: 'सारांश', totalIncome: 'कुल आय', totalOutcome: 'कुल व्यय', netProfit: 'शुद्ध लाभ', netDeficit: 'शुद्ध घाटा', date: 'तारीख', time: 'समय', duration: 'अवधि', category: 'श्रेणी', description: 'विवरण', income: 'आय', outcome: 'व्यय' }
+      };
+      const t = translations[currentLanguage] || translations.en;
+      
       const projectSelect = document.getElementById('report-project-select');
       const selectedProject = projectSelect ? projectSelect.value : 'all';
       const includeFinanceSelect = document.getElementById('report-include-finance-select');
       const includeFinance = includeFinanceSelect ? includeFinanceSelect.value !== 'no' : true;
       const reportData = cachedReportData || generateReportData(selectedProject, currentReportMonth, currentReportYear);
-      const projectTitle = cachedProjectTitle || (selectedProject === 'all' ? 'All Projects' : selectedProject);
+      const projectTitle = cachedProjectTitle || (selectedProject === 'all' ? t.allProjects : selectedProject);
 
       if (format === 'csv') {
         const csvHeader = includeFinance
@@ -13058,28 +14564,28 @@ searchInput.disabled = true;
       }
 
       const reportText = `Loginner Monthly Report - ${reportData.month}
-Project: ${projectTitle}
-SUMMARY
+${t.projectLabel}: ${projectTitle}
+${t.summary}
 =======
-Total Sessions: ${reportData.totalSessions}
-Total Time: ${reportData.totalTime}
+${t.totalSessions}: ${reportData.totalSessions}
+${t.totalTime}: ${reportData.totalTime}
 
-${includeFinance ? `Total Income: +${reportData.totalIncome.toFixed(2)} $
-Total Outcome: -${reportData.totalOutcome.toFixed(2)} $
-${reportData.netResult >= 0 ? 'Net Profit' : 'Net Deficit'}: ${reportData.netResult >= 0 ? '+' : ''}${reportData.netResult.toFixed(2)} $
+${includeFinance ? `${t.totalIncome}: +${reportData.totalIncome.toFixed(2)} $
+${t.totalOutcome}: -${reportData.totalOutcome.toFixed(2)} $
+${reportData.netResult >= 0 ? t.netProfit : t.netDeficit}: ${reportData.netResult >= 0 ? '+' : ''}${reportData.netResult.toFixed(2)} $
 ` : ''}
 
-SESSION DETAILS
+${t.sessionDetails}
 ===============
-${reportData.sessions.map(session => `Date: ${session.date}
-Time: ${session.startTime || 'N/A'} - ${session.endTime || 'N/A'}
-Duration: ${session.duration || 'N/A'}
-Category: ${session.category}
-Description: ${session.description}
-${includeFinance && session.income ? `Income: +${Number(session.income).toFixed(2)} ${session.incomeDescription ? '- ' + session.incomeDescription : ''}` : ''}
-${includeFinance && session.outcome ? `Outcome: -${Number(session.outcome).toFixed(2)} ${session.outcomeDescription ? '- ' + session.outcomeDescription : ''}` : ''}
+${reportData.sessions.length > 0 ? reportData.sessions.map(session => `${t.date}: ${session.date}
+${t.time}: ${session.startTime || 'N/A'} - ${session.endTime || 'N/A'}
+${t.duration}: ${session.duration || 'N/A'}
+${t.category}: ${session.category}
+${t.description}: ${session.description}
+${includeFinance && session.income ? `${t.income}: +${Number(session.income).toFixed(2)} ${session.incomeDescription ? '- ' + session.incomeDescription : ''}` : ''}
+${includeFinance && session.outcome ? `${t.outcome}: -${Number(session.outcome).toFixed(2)} ${session.outcomeDescription ? '- ' + session.outcomeDescription : ''}` : ''}
 ---
-`).join('\n')}
+`).join('\n') : t.noSessionsRecorded}
 
 Generated by Loginner
 ${new Date().toLocaleString()}`;
