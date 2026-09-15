@@ -41,7 +41,11 @@ let persistQueued = false;
 let persistInFlight = false;
 
 function isHugeClipboardText(value) {
-  return typeof value === 'string' && (value.startsWith('data:image/') || value.length > 50000);
+  if (typeof value !== 'string') return false;
+  if (value.startsWith('data:image/') || value.length > 50000) return true;
+  const trimmed = value.trim();
+  if (/^[A-Za-z]:\\/.test(trimmed) && /\.(png|jpe?g|gif|webp|bmp|webm)$/i.test(trimmed)) return true;
+  return false;
 }
 
 function stripInlineMediaFromScreenerItem(item) {
@@ -233,6 +237,16 @@ const PREPARE_PAGE_FOR_CAPTURE_JS = `
   return true;
 })();
 `;
+
+function putImageOnClipboard(image) {
+  try { clipboard.clear(); } catch (_) {}
+  clipboard.writeImage(image);
+  try {
+    const png = image.toPNG();
+    if (png && png.length) clipboard.writeBuffer('image/png', png);
+  } catch (_) {}
+  return !clipboard.readImage().isEmpty();
+}
 
 function isValidCaptureImage(image) {
   if (!image || typeof image.isEmpty !== 'function' || image.isEmpty()) return false;
@@ -3601,25 +3615,9 @@ function copyImageFromPayload(payload) {
   }
 
   image = scaleCaptureForReadableSave(image);
-
-  // Clear first to avoid conflicting formats
-  try { clipboard.clear(); } catch (_) {}
-
-  // Primary: native image
-  clipboard.writeImage(image);
-
-  // Extra formats to improve paste compatibility
-  try {
-    const png = image.toPNG();
-    if (png && png.length) {
-      clipboard.writeBuffer('image/png', png);
-    }
-  } catch (e) { console.warn('writeBuffer image/png failed:', e?.message || e); }
-
-  // Do not write base64 HTML copies — that freezes the UI on large screenshots.
-  const ok = clipboard.availableFormats().some(f => f.startsWith('image/')) || !clipboard.readImage().isEmpty();
-  console.log(ok ? 'Image successfully copied to clipboard' : 'Clipboard write returned empty');
-  if (!ok) throw new Error('Clipboard write failed');
+  if (!putImageOnClipboard(image)) {
+    throw new Error('Failed to write image to clipboard');
+  }
   return true;
 }
 
@@ -3692,21 +3690,7 @@ ipcMain.handle('copy-image', async (event, payload) => {
     }
 
     image = scaleCaptureForReadableSave(image);
-    
-    console.log('Image created. FilePath:', filePath || 'NONE');
-    
-    // Clear clipboard first
-    try { clipboard.clear(); } catch (_) {}
-    clipboard.writeImage(image);
-    if (filePath) {
-      try { writeFilesToClipboardWindows([filePath]); } catch (_) {}
-    }
-    const formats = clipboard.availableFormats();
-    console.log('Clipboard formats after writeImage:', formats);
-    const ok = formats.some(f => f.startsWith('image/')) || !clipboard.readImage().isEmpty();
-    console.log(ok ? '✅ Image bitmap written to clipboard' : '❌ Clipboard write failed');
-    console.log('========================================\n');
-    
+    const ok = putImageOnClipboard(image);
     if (!ok) throw new Error('Clipboard write failed');
     return { success: true };
   } catch (error) {
@@ -3820,13 +3804,7 @@ ipcMain.handle('share-editor-image', async (event, { mode, imageData, sourcePath
     fs.writeFileSync(filepath, image.toPNG());
 
     const copyShareImageToClipboard = () => {
-      try { clipboard.clear(); } catch (_) {}
-      clipboard.writeImage(image);
-      try {
-        const png = image.toPNG();
-        if (png && png.length) clipboard.writeBuffer('image/png', png);
-      } catch (_) {}
-      writeFilesToClipboardWindows([filepath]);
+      putImageOnClipboard(image);
     };
 
     const launchWhatsApp = async () => {

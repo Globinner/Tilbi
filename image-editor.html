@@ -200,6 +200,8 @@
       background: #6d28d9;
       padding: 8px;
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       gap: 4px;
       border-bottom: 1px solid rgba(139, 92, 246, 0.5);
       flex-shrink: 0;
@@ -217,10 +219,47 @@
       overflow: auto;
       background: #1e3a8a;
       display: flex;
-      align-items: flex-start;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
       padding: 20px;
       box-sizing: border-box;
+      position: relative;
+    }
+
+    .canvas-zoom-fab {
+      position: sticky;
+      top: 12px;
+      left: 12px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      padding: 6px 8px;
+      margin: 0 auto 12px 0;
+      align-self: flex-start;
+    }
+
+    .canvas-zoom-fab button {
+      width: 36px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .canvas-zoom-fab span {
+      min-width: 48px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
     }
 
     #canvas {
@@ -455,6 +494,11 @@
 
   <div class="main-content">
     <div class="canvas-container">
+      <div class="canvas-zoom-fab" id="canvasZoomFab">
+        <button type="button" id="zoomOutBtn2" title="Zoom out">−</button>
+        <span id="zoomLabel2">100%</span>
+        <button type="button" id="zoomInBtn2" title="Zoom in">+</button>
+      </div>
       <canvas id="canvas"></canvas>
     </div>
   </div>
@@ -515,8 +559,11 @@
     function applyViewZoom() {
       canvas.style.width = Math.round(canvas.width * viewZoom) + 'px';
       canvas.style.height = Math.round(canvas.height * viewZoom) + 'px';
+      const text = Math.round(viewZoom * 100) + '%';
       const label = document.getElementById('zoomLabel');
-      if (label) label.textContent = Math.round(viewZoom * 100) + '%';
+      const label2 = document.getElementById('zoomLabel2');
+      if (label) label.textContent = text;
+      if (label2) label2.textContent = text;
     }
 
     function setViewZoom(next) {
@@ -526,6 +573,10 @@
 
     document.getElementById('zoomInBtn').addEventListener('click', () => setViewZoom(viewZoom * 1.25));
     document.getElementById('zoomOutBtn').addEventListener('click', () => setViewZoom(viewZoom / 1.25));
+    const zoomIn2 = document.getElementById('zoomInBtn2');
+    const zoomOut2 = document.getElementById('zoomOutBtn2');
+    if (zoomIn2) zoomIn2.addEventListener('click', () => setViewZoom(viewZoom * 1.25));
+    if (zoomOut2) zoomOut2.addEventListener('click', () => setViewZoom(viewZoom / 1.25));
     document.querySelector('.canvas-container').addEventListener('wheel', (e) => {
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
