@@ -51,12 +51,15 @@
       opacity: 1;
     }
 
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
       cursor: crosshair;
       user-select: none;
+      background: transparent;
+      width: 100%;
+      height: 100%;
     }
 
     #overlay {
@@ -117,9 +120,27 @@
       border-color: #4a86e8;
     }
 
+    .toolbar-tooltip {
+      position: fixed;
+      display: none;
+      z-index: 10002;
+      background: rgba(20, 24, 36, 0.94);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      pointer-events: none;
+      max-width: min(280px, calc(100vw - 24px));
+      white-space: normal;
+      line-height: 1.35;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+
     .selection-guide {
       position: fixed;
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.92);
       padding: 5px 10px;
       border-radius: 4px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -127,6 +148,9 @@
       color: #333;
       pointer-events: none;
       z-index: 9999;
+      max-width: min(320px, calc(100vw - 24px));
+      white-space: normal;
+      line-height: 1.35;
     }
 
     .capture-button {
@@ -163,15 +187,16 @@
   <div id="overlay"></div>
   <div id="cursorIndicator"></div>
   <div id="crosshairIndicator"></div>
-  <div id="shapeToggle" title="Selection shape (press C to toggle)">
+  <div id="shapeToggle">
     <div id="btnRect" class="btn active">Rect</div>
     <div id="btnCircle" class="btn">Circle</div>
     <div id="btnFullScreen" class="btn">Full Screen</div>
     <div id="btnFullWebpage" class="btn">Full Webpage</div>
   </div>
+  <div id="toolbarTooltip" class="toolbar-tooltip"></div>
   <div id="selection"></div>
   <div id="captureButton" class="capture-button" style="display: none;">Capture</div>
-  <div class="selection-guide">Click and drag to select an area</div>
+  <div class="selection-guide">Click to return to Tilbi · drag to select an area</div>
   
   <!-- URL Input Dialog -->
   <div id="urlInputDialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 20000; min-width: 400px; pointer-events: auto;">
@@ -204,15 +229,99 @@
     const btnFullScreen = document.getElementById('btnFullScreen');
     const btnFullWebpage = document.getElementById('btnFullWebpage');
     const captureButton = document.getElementById('captureButton');
+    const toolbarTooltip = document.getElementById('toolbarTooltip');
+    const shapeToggle = document.getElementById('shapeToggle');
     const cursorIndicator = document.getElementById('cursorIndicator');
     const crosshairIndicator = document.getElementById('crosshairIndicator');
+
+    const TOOLBAR_TIPS = {
+      btnRect: 'Rectangle selection — drag to select an area',
+      btnCircle: 'Circle selection — drag to select a circular area',
+      btnFullScreen: 'Capture the entire screen',
+      btnFullWebpage: 'Capture a full webpage from URL'
+    };
+
+    function clampFloatingEl(el, left, top) {
+      el.style.left = Math.round(left) + 'px';
+      el.style.top = Math.round(top) + 'px';
+      const pad = 10;
+      const rect = el.getBoundingClientRect();
+      let x = left;
+      let y = top;
+      if (rect.right > window.innerWidth - pad) {
+        x -= rect.right - (window.innerWidth - pad);
+      }
+      if (rect.left < pad) {
+        x += pad - rect.left;
+      }
+      if (rect.bottom > window.innerHeight - pad) {
+        y -= rect.bottom - (window.innerHeight - pad);
+      }
+      if (rect.top < pad) {
+        y += pad - rect.top;
+      }
+      el.style.left = Math.round(x) + 'px';
+      el.style.top = Math.round(y) + 'px';
+    }
+
+    function hideToolbarTip() {
+      if (toolbarTooltip) toolbarTooltip.style.display = 'none';
+    }
+
+    function showToolbarTip(e, text) {
+      if (!toolbarTooltip || !text) return;
+      guide.style.display = 'none';
+      toolbarTooltip.textContent = text;
+      toolbarTooltip.style.display = 'block';
+      const btn = e.currentTarget;
+      const rect = btn.getBoundingClientRect();
+      toolbarTooltip.style.visibility = 'hidden';
+      const tipW = toolbarTooltip.offsetWidth;
+      const tipH = toolbarTooltip.offsetHeight;
+      toolbarTooltip.style.visibility = 'visible';
+      let left = rect.left + rect.width / 2 - tipW / 2;
+      let top = rect.bottom + 8;
+      if (top + tipH > window.innerHeight - 10) {
+        top = rect.top - tipH - 8;
+      }
+      clampFloatingEl(toolbarTooltip, left, top);
+    }
+
+    [btnRect, btnCircle, btnFullScreen, btnFullWebpage].forEach((btn) => {
+      if (!btn) return;
+      btn.addEventListener('mouseenter', (e) => showToolbarTip(e, TOOLBAR_TIPS[btn.id]));
+      btn.addEventListener('mousemove', (e) => showToolbarTip(e, TOOLBAR_TIPS[btn.id]));
+      btn.addEventListener('mouseleave', () => {
+        hideToolbarTip();
+        guide.style.display = 'block';
+      });
+    });
+
+    if (shapeToggle) {
+      shapeToggle.addEventListener('mouseenter', hideToolbarTip);
+    }
     
     let isDrawing = false;
     let startX, startY;
+    let pointerDownX = 0;
+    let pointerDownY = 0;
     let selectionShape = 'rect';
     let isMovingCircle = false;
     let circleMoveOffsetX = 0;
     let circleMoveOffsetY = 0;
+    const CLICK_MOVE_THRESHOLD = 8;
+
+    function isOverlayControlClick(target) {
+      return target && target.closest && (
+        target.closest('#shapeToggle') ||
+        target.closest('#captureButton') ||
+        target.closest('#urlInputDialog')
+      );
+    }
+
+    function pointerTravel(e) {
+      return Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY);
+    }
 
     // Cursor tracking for visual indicator
     function updateCursorPosition(e) {
@@ -263,18 +372,41 @@
         selection.style.borderRadius = '50%';
         btnCircle.classList.add('active');
         btnRect.classList.remove('active');
-        guide.textContent = 'Drag to select a circular area';
+        setDefaultGuideText();
       } else {
         selection.style.borderRadius = '0';
         btnRect.classList.add('active');
         btnCircle.classList.remove('active');
-        guide.textContent = 'Click and drag to select an area';
+        setDefaultGuideText();
       }
     }
 
     function updateGuidePosition(e) {
-      guide.style.left = (e.clientX + 15) + 'px';
-      guide.style.top = (e.clientY + 15) + 'px';
+      if (e.target && e.target.closest && e.target.closest('#shapeToggle')) {
+        guide.style.display = 'none';
+        return;
+      }
+      hideToolbarTip();
+      guide.style.display = 'block';
+      guide.style.visibility = 'hidden';
+      const tipW = guide.offsetWidth;
+      const tipH = guide.offsetHeight;
+      guide.style.visibility = 'visible';
+      let left = e.clientX + 15;
+      let top = e.clientY + 15;
+      if (left + tipW > window.innerWidth - 12) {
+        left = e.clientX - tipW - 15;
+      }
+      if (top + tipH > window.innerHeight - 12) {
+        top = e.clientY - tipH - 15;
+      }
+      clampFloatingEl(guide, left, top);
+    }
+
+    function setDefaultGuideText() {
+      guide.textContent = selectionShape === 'circle'
+        ? 'Click to return to Tilbi · drag to select a circular area'
+        : 'Click to return to Tilbi · drag to select an area';
     }
 
     function updateSelectionBox(e) {
@@ -305,11 +437,13 @@
     }
 
     function handleMouseDown(e) {
-      // Ignore clicks on the shape toggle UI, capture button, and URL dialog
-      if (e.target && e.target.closest && (e.target.closest('#shapeToggle') || e.target.closest('#captureButton') || e.target.closest('#urlInputDialog'))) {
+      if (isOverlayControlClick(e.target)) {
         e.stopPropagation();
         return;
       }
+
+      pointerDownX = e.clientX;
+      pointerDownY = e.clientY;
       
       // Show cursor indicators when starting to draw
       showCursorIndicators();
@@ -375,9 +509,18 @@
       
       isDrawing = false;
       const bounds = selection.getBoundingClientRect();
+      const moved = pointerTravel(e);
       
       // Hide cursor indicators when done drawing
       hideCursorIndicators();
+
+      // Plain click on screen: exit capture and return to Tilbi
+      if (moved < CLICK_MOVE_THRESHOLD) {
+        if (isMovingCircle || bounds.width <= 10 || bounds.height <= 10) {
+          ipcRenderer.send('cancel-selection');
+          return;
+        }
+      }
       
       // Only proceed if the selection has a valid size
       if (bounds.width > 10 && bounds.height > 10) {
@@ -413,7 +556,6 @@
           ipcRenderer.send('capture-selected-area', payload);
         }
       } else {
-        // If selection is too small, cancel it
         ipcRenderer.send('cancel-selection');
       }
     }
@@ -529,16 +671,9 @@
       }
     });
 
-    // Handle mouse leaving the window
     document.addEventListener('mouseleave', () => {
-      if (isDrawing) {
+      if (isDrawing && !isMovingCircle) {
         isDrawing = false;
-        if (isMovingCircle) {
-          // Just stop moving, don't cancel selection
-          isMovingCircle = false;
-        } else {
-          ipcRenderer.send('cancel-selection');
-        }
       }
     });
 
@@ -552,7 +687,7 @@
         } else if (isMovingCircle) {
           // Reset to drawing mode
           resetSelection();
-          guide.textContent = selectionShape === 'circle' ? 'Drag to select a circular area' : 'Click and drag to select an area';
+          setDefaultGuideText();
         } else {
           ipcRenderer.send('cancel-selection');
         }

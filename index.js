@@ -12,6 +12,8 @@ try {
 }
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const Store = require('electron-store');
 const os = require('os');
 const { google } = require('googleapis');
@@ -31,9 +33,156 @@ function generateScreenshotFilename() {
 }
 
 console.log('Initializing electron-store...');
-// Initialize the data store
-const store = new Store({ name: 'clipboard-history' });
+const rawStore = new Store({ name: 'clipboard-history' });
+const storePath = rawStore.path;
+let memoryStore = rawStore.store || {};
+let persistTimer = null;
+let persistQueued = false;
+let persistInFlight = false;
+
+function isHugeClipboardText(value) {
+  return typeof value === 'string' && (value.startsWith('data:image/') || value.length > 50000);
+}
+
+function stripInlineMediaFromScreenerItem(item) {
+  if (!item || typeof item !== 'object') return item;
+  if (!item.dataUrl && !item.thumbnailDataUrl) return item;
+  const next = { ...item };
+  delete next.dataUrl;
+  delete next.thumbnailDataUrl;
+  return next;
+}
+
+function sanitizeMemoryStore() {
+  let changed = false;
+  if (Array.isArray(memoryStore.screenerItems)) {
+    const compacted = memoryStore.screenerItems.map((item) => {
+      if (item && typeof item === 'object' && (item.dataUrl || item.thumbnailDataUrl)) {
+        changed = true;
+        return stripInlineMediaFromScreenerItem(item);
+      }
+      return item;
+    });
+    memoryStore.screenerItems = compacted;
+  }
+  if (Array.isArray(memoryStore.clipboardHistory)) {
+    const filtered = memoryStore.clipboardHistory.filter((item) => !isHugeClipboardText(item));
+    if (filtered.length !== memoryStore.clipboardHistory.length) {
+      changed = true;
+      memoryStore.clipboardHistory = filtered;
+    }
+  }
+  return changed;
+}
+
+function persistMemoryStore() {
+  persistTimer = null;
+  if (persistInFlight) {
+    persistQueued = true;
+    return;
+  }
+  persistInFlight = true;
+  const tmp = storePath + '.tmp';
+  let json;
+  try {
+    json = JSON.stringify(memoryStore);
+  } catch (err) {
+    persistInFlight = false;
+    logMain('Failed to serialize store', err);
+    return;
+  }
+  fs.writeFile(tmp, json, (writeErr) => {
+    if (writeErr) {
+      persistInFlight = false;
+      logMain('Failed to write store', writeErr);
+      return;
+    }
+    fs.rename(tmp, storePath, (renameErr) => {
+      persistInFlight = false;
+      if (renameErr) {
+        fs.copyFile(tmp, storePath, () => {});
+      }
+      if (persistQueued) {
+        persistQueued = false;
+        schedulePersist();
+      }
+    });
+  });
+}
+
+function schedulePersist() {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(persistMemoryStore, 400);
+}
+
+const store = {
+  get(key, defaultValue) {
+    if (Object.prototype.hasOwnProperty.call(memoryStore, key) && memoryStore[key] !== undefined) {
+      return memoryStore[key];
+    }
+    return defaultValue;
+  },
+  has(key) {
+    return Object.prototype.hasOwnProperty.call(memoryStore, key);
+  },
+  delete(key) {
+    if (Object.prototype.hasOwnProperty.call(memoryStore, key)) {
+      delete memoryStore[key];
+      schedulePersist();
+    }
+  },
+  get path() { return storePath; },
+  set(key, value) {
+    if (value === undefined || value === null) {
+      if (Object.prototype.hasOwnProperty.call(memoryStore, key)) {
+        delete memoryStore[key];
+        schedulePersist();
+      }
+      return;
+    }
+    memoryStore[key] = value;
+    schedulePersist();
+  }
+};
 console.log('Store initialized successfully');
+
+function getMainLogPath() {
+  try {
+    return path.join(app.getPath('userData'), 'tilbi-main.log');
+  } catch (_) {
+    return path.join(process.env.APPDATA || os.homedir(), 'tilbi', 'tilbi-main.log');
+  }
+}
+
+function logMain(...args) {
+  const line = args.map((arg) => {
+    if (arg instanceof Error) return arg.stack || arg.message;
+    if (typeof arg === 'string') return arg;
+    try { return JSON.stringify(arg); } catch (_) { return String(arg); }
+  }).join(' ');
+  const stamped = `[${new Date().toISOString()}] ${line}`;
+  try {
+    fs.appendFileSync(getMainLogPath(), stamped + '\n');
+  } catch (_) {}
+  console.log(...args);
+}
+
+process.on('uncaughtException', (err) => {
+  logMain('uncaughtException', err);
+});
+process.on('unhandledRejection', (reason) => {
+  logMain('unhandledRejection', reason instanceof Error ? reason : String(reason));
+});
+
+function pathToFileUrl(filePath) {
+  if (!filePath) return '';
+  const normalized = path.resolve(String(filePath)).replace(/\\/g, '/');
+  return encodeURI('file:///' + normalized.replace(/^\/+/, ''));
+}
+
+if (sanitizeMemoryStore()) {
+  schedulePersist();
+}
 
 // Initialize screener store if it doesn't exist
 if (!store.has('screenerItems')) {
@@ -48,7 +197,6 @@ if (!store.has('skipDeleteConfirmation')) {
 // Initialize EULA acceptance status
 if (!store.has('eulaAccepted')) {
   store.set('eulaAccepted', false);
-  store.set('eulaAcceptedDate', null);
   store.set('eulaVersion', '1.0');
 }
 
@@ -56,6 +204,243 @@ if (!store.has('eulaAccepted')) {
 const MAX_HISTORY_ITEMS = Infinity;  // Unlimited history items
 const MAX_PINNED_ITEMS = Infinity;   // Unlimited pinned items
 const MAX_SCREENER_ITEMS = Infinity; // Unlimited screener items
+const SCREENER_LOADING_STALE_MS = 90000;
+const WEBPAGE_CAPTURE_TIMEOUT_MS = 90000;
+const WEBPAGE_CAPTURE_SORRY_MSG =
+  "Sorry — we couldn't capture this full page. Some sites use videos, login walls, or heavy scripts that block capture. Try Interactive mode, or use Rect / Full Screen instead.";
+
+const PREPARE_PAGE_FOR_CAPTURE_JS = `
+(function() {
+  try {
+    const style = document.createElement('style');
+    style.id = 'tilbi-capture-prep';
+    style.textContent = 'video, audio, iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="video"] { visibility: hidden !important; pointer-events: none !important; max-height: 1px !important; overflow: hidden !important; }';
+    (document.head || document.documentElement).appendChild(style);
+    document.querySelectorAll('video').forEach(function(v) {
+      try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
+    });
+    document.querySelectorAll('audio').forEach(function(a) {
+      try { a.pause(); a.removeAttribute('src'); } catch (e) {}
+    });
+    document.querySelectorAll('iframe').forEach(function(f) {
+      var s = (f.src || '').toLowerCase();
+      if (s.indexOf('youtube') >= 0 || s.indexOf('vimeo') >= 0 || s.indexOf('video') >= 0 || s.indexOf('player') >= 0) {
+        f.style.display = 'none';
+      }
+    });
+    document.querySelectorAll('img[loading="lazy"]').forEach(function(img) { img.loading = 'eager'; });
+  } catch (e) {}
+  return true;
+})();
+`;
+
+function isValidCaptureImage(image) {
+  if (!image || typeof image.isEmpty !== 'function' || image.isEmpty()) return false;
+  const size = image.getSize ? image.getSize() : { width: 0, height: 0 };
+  return size.width >= 10 && size.height >= 10;
+}
+
+async function waitForPageReady(webContents) {
+  try {
+    await Promise.race([
+      webContents.executeJavaScript(`(async () => {
+        try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+        const imgs = Array.from(document.images || []).slice(0, 60);
+        await Promise.all(imgs.map((img) => {
+          if (!img || img.complete) return null;
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            setTimeout(resolve, 1800);
+          });
+        }));
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return true;
+      })()`),
+      new Promise((resolve) => setTimeout(resolve, 3500))
+    ]);
+  } catch (_) {}
+}
+
+async function captureWebpageViaCdp(targetWindow, hiRes) {
+  const wc = targetWindow.webContents;
+  const wasAttached = wc.debugger.isAttached();
+  if (!wasAttached) {
+    try {
+      wc.debugger.attach('1.3');
+    } catch (_) {
+      wc.debugger.attach();
+    }
+  }
+  try {
+    const metrics = await wc.debugger.sendCommand('Page.getLayoutMetrics');
+    const content = metrics.cssContentSize || metrics.contentSize || {};
+    const width = Math.min(Math.max(Math.ceil(content.width || 1280), 800), hiRes ? 1920 : 1440);
+    const height = Math.min(Math.max(Math.ceil(content.height || 800), 600), hiRes ? 14000 : 10000);
+    await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', {
+      mobile: false,
+      width,
+      height,
+      deviceScaleFactor: 1,
+      screenWidth: width,
+      screenHeight: height
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const shot = await wc.debugger.sendCommand('Page.captureScreenshot', {
+      format: 'png',
+      fromSurface: true,
+      captureBeyondViewport: true
+    });
+    try { await wc.debugger.sendCommand('Emulation.clearDeviceMetricsOverride'); } catch (_) {}
+    if (!shot || !shot.data) return null;
+    return nativeImage.createFromBuffer(Buffer.from(shot.data, 'base64'));
+  } finally {
+    if (!wasAttached) {
+      try { if (wc.debugger.isAttached()) wc.debugger.detach(); } catch (_) {}
+    }
+  }
+}
+
+async function captureWebpageImage(targetWindow, hiRes) {
+  const wc = targetWindow.webContents;
+  await waitForPageReady(wc);
+  try {
+    await Promise.race([
+      wc.executeJavaScript(PREPARE_PAGE_FOR_CAPTURE_JS),
+      new Promise((resolve) => setTimeout(resolve, 1200))
+    ]);
+  } catch (_) {}
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const image = await captureWebpageViaCdp(targetWindow, hiRes);
+      if (isValidCaptureImage(image)) return image;
+    } catch (err) {
+      console.warn('CDP webpage capture attempt failed:', err && err.message);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+  }
+
+  try {
+    const pageSize = await wc.executeJavaScript(`({
+      width: Math.max(document.documentElement.scrollWidth || 0, document.body.scrollWidth || 0, 800),
+      height: Math.max(document.documentElement.scrollHeight || 0, document.body.scrollHeight || 0, 600)
+    })`);
+    const widthCap = hiRes ? 1920 : 1440;
+    const heightCap = hiRes ? 14000 : 8000;
+    targetWindow.setContentSize(
+      Math.min(Math.max(pageSize.width, 800), widthCap),
+      Math.min(Math.max(pageSize.height, 600), heightCap)
+    );
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const image = await wc.capturePage();
+    if (isValidCaptureImage(image)) return image;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const retry = await wc.capturePage();
+    if (isValidCaptureImage(retry)) return retry;
+  } catch (err) {
+    console.warn('Viewport webpage capture failed:', err && err.message);
+  }
+
+  throw new Error(WEBPAGE_CAPTURE_SORRY_MSG);
+}
+
+function makeDragIcon(filePath) {
+  let icon = filePath ? nativeImage.createFromPath(filePath) : nativeImage.createEmpty();
+  if (!icon.isEmpty()) {
+    const size = icon.getSize();
+    if (size.width > 128 || size.height > 128) {
+      icon = icon.resize({ width: 96, height: 96, quality: 'good' });
+    }
+    return icon;
+  }
+  const fallback = findIconFile();
+  if (fallback) {
+    icon = nativeImage.createFromPath(fallback);
+    if (!icon.isEmpty()) return icon.resize({ width: 48, height: 48, quality: 'good' });
+  }
+  return nativeImage.createFromBuffer(Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAZ31ahAAAAdklEQVR4nO3UMQ0AIAwEwQ1q+JcJGkjgJdnMzN39AQAAAAAAAAAAAAD4M3P3iLi7uZ+Z+0fE3c/9PAAAAAAAAAAA8B8AAAAAAAAAAMBfADwAqo8BuW95iVsAAAAASUVORK5CYII=',
+    'base64'
+  ));
+}
+
+function broadcastClipboardData() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const screener = (store.get('screenerItems') || []).map(stripInlineMediaFromScreenerItem);
+    mainWindow.webContents.send('clipboard-data', {
+      history: store.get('clipboardHistory') || [],
+      pinned: store.get('pinnedItems') || [],
+      screener
+    });
+  }
+}
+
+function purgeStaleScreenerLoadingItems(maxAgeMs = SCREENER_LOADING_STALE_MS) {
+  let screenerItems = store.get('screenerItems') || [];
+  const now = Date.now();
+  const filtered = screenerItems.filter((it) => {
+    if (!it || typeof it !== 'object' || it.type !== 'loading') return true;
+    if (maxAgeMs <= 0) return false;
+    return it.timestamp && (now - it.timestamp) < maxAgeMs;
+  });
+  if (filtered.length !== screenerItems.length) {
+    store.set('screenerItems', filtered);
+    broadcastClipboardData();
+  }
+  return filtered;
+}
+
+function removeScreenerLoadingById(placeholderId) {
+  let screenerItems = store.get('screenerItems') || [];
+  const filtered = screenerItems.filter((it) => {
+    if (!it || typeof it !== 'object' || it.type !== 'loading') return true;
+    if (!placeholderId) return false;
+    return it.id !== placeholderId;
+  });
+  if (filtered.length !== screenerItems.length) {
+    store.set('screenerItems', filtered);
+    broadcastClipboardData();
+  }
+}
+
+function replaceScreenerLoadingWithError(placeholderId, message) {
+  const friendly = message || WEBPAGE_CAPTURE_SORRY_MSG;
+  let screenerItems = store.get('screenerItems') || [];
+  const entry = {
+    id: placeholderId || `error-${Date.now()}`,
+    type: 'capture-error',
+    timestamp: Date.now(),
+    message: friendly
+  };
+  if (placeholderId) {
+    const idx = screenerItems.findIndex((it) => it && it.id === placeholderId);
+    if (idx >= 0) {
+      screenerItems[idx] = entry;
+    } else {
+      screenerItems.unshift(entry);
+    }
+  } else {
+    screenerItems = screenerItems.filter((it) => !(it && it.type === 'loading'));
+    screenerItems.unshift(entry);
+  }
+  store.set('screenerItems', screenerItems);
+  broadcastClipboardData();
+}
+
+function addScreenerLoadingPlaceholder(url, message) {
+  const placeholderId = `loading-${Date.now()}`;
+  let screenerItems = store.get('screenerItems') || [];
+  screenerItems.unshift({
+    id: placeholderId,
+    type: 'loading',
+    timestamp: Date.now(),
+    url,
+    message: message || 'Capturing webpage...'
+  });
+  store.set('screenerItems', screenerItems);
+  return placeholderId;
+}
 
 // Exact pixel height of the header-only mode (matches renderer header)
 const HEADER_ONLY_HEIGHT = 46;
@@ -76,10 +461,115 @@ console.log('💾 Store path:', store.path);
 console.log('📐 Initial app size:', currentAppSize);
 
 // Auto-updater configuration
-if (autoUpdater) {
-  autoUpdater.checkForUpdatesAndNotify();
-  autoUpdater.autoDownload = false; // Let user choose when to download
-  autoUpdater.autoInstallOnAppQuit = true; // Install on app quit
+const UPDATE_UP_TO_DATE_MSG = 'Your app is up to date.';
+const TILBI_UPDATES_BASE = 'https://github.com/Globinner/Tilbi/releases/latest/download';
+
+function resolveUpdateCheckFailure(err) {
+  const raw = (err && err.message) ? err.message : 'Could not check for updates.';
+  if (/404|Not Found|no published versions|latest release|releases\/tag/i.test(raw)) {
+    return { status: 'not-available', message: UPDATE_UP_TO_DATE_MSG };
+  }
+  if (/app-update\.yml/i.test(raw) || /ENOENT/i.test(raw)) {
+    return { status: 'error', message: 'One-time fix needed: click Download Update below, then Restart & Install.' };
+  }
+  if (/net::|network|ENOTFOUND|ETIMEDOUT|ECONNREFUSED/i.test(raw)) {
+    return { status: 'error', message: 'Could not reach the update server. Check your internet connection.' };
+  }
+  return { status: 'error', message: raw };
+}
+
+function requestWithRedirects(url, maxRedirects = 8) {
+  return new Promise((resolve, reject) => {
+    const follow = (targetUrl, left) => {
+      const lib = targetUrl.startsWith('https:') ? https : http;
+      lib.get(targetUrl, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && left > 0) {
+          const next = res.headers.location.startsWith('http')
+            ? res.headers.location
+            : new URL(res.headers.location, targetUrl).href;
+          res.resume();
+          follow(next, left - 1);
+          return;
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`Download failed (${res.statusCode})`));
+          return;
+        }
+        resolve(res);
+      }).on('error', reject);
+    };
+    follow(url, maxRedirects);
+  });
+}
+
+function downloadLatestInstaller(onProgress) {
+  const cacheDir = path.join(app.getPath('temp'), 'tilbi-updater');
+  fs.mkdirSync(cacheDir, { recursive: true });
+  const dest = path.join(cacheDir, 'Tilbi-Setup.exe');
+
+  return requestWithRedirects(`${TILBI_UPDATES_BASE}/Tilbi-Setup.exe`).then((res) => {
+    return new Promise((resolve, reject) => {
+      const total = parseInt(res.headers['content-length'], 10) || 0;
+      let transferred = 0;
+      const file = fs.createWriteStream(dest);
+
+      const report = () => {
+        if (typeof onProgress === 'function') {
+          onProgress({
+            percent: total ? (transferred / total) * 100 : 50,
+            transferred,
+            total: total || transferred
+          });
+        }
+      };
+
+      res.on('data', (chunk) => {
+        transferred += chunk.length;
+        report();
+      });
+      res.pipe(file);
+      file.on('finish', () => file.close(() => resolve(dest)));
+      file.on('error', reject);
+      res.on('error', reject);
+    });
+  });
+}
+
+function configureAutoUpdater() {
+  if (!autoUpdater) return;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  if (app.isPackaged) {
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: TILBI_UPDATES_BASE
+    });
+  }
+}
+
+let downloadedUpdateFile = null;
+
+function runDownloadedInstallerAndQuit() {
+  const candidates = [
+    downloadedUpdateFile,
+    autoUpdater && autoUpdater.downloadedUpdateHelper
+      ? path.join(autoUpdater.downloadedUpdateHelper.cacheDir, 'Tilbi-Setup.exe')
+      : null
+  ].filter(Boolean);
+
+  for (const installerPath of candidates) {
+    if (!fs.existsSync(installerPath)) continue;
+    spawn(installerPath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/CLOSEAPPLICATIONS'], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    }).unref();
+    setTimeout(() => app.quit(), 500);
+    return true;
+  }
+  return false;
 }
 
 // Prevent multiple instances of the app
@@ -94,7 +584,206 @@ if (!gotTheLock) {
 let mainWindow = null;
 let clipboardWindow = null;
 let selectionWindow = null;
+let editorWindow = null;
 let isScreenshotMode = false;
+let wasMinimizedForTaskbarCamera = false; // kept only to ignore stale restore-capture behavior
+
+function getCaptureWindowBounds() {
+  const displays = screen.getAllDisplays();
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const display of displays) {
+    const { x, y, width, height } = display.bounds;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + width);
+    maxY = Math.max(maxY, y + height);
+  }
+  if (!isFinite(minX) || !isFinite(minY)) {
+    const primary = screen.getPrimaryDisplay().bounds;
+    return { x: primary.x, y: primary.y, width: primary.width, height: primary.height };
+  }
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY)
+  };
+}
+
+function getDisplayForCaptureBounds(bounds) {
+  const centerX = bounds.x + (bounds.width / 2);
+  const centerY = bounds.y + (bounds.height / 2);
+  for (const display of screen.getAllDisplays()) {
+    const db = display.bounds;
+    if (centerX >= db.x && centerX < (db.x + db.width) &&
+        centerY >= db.y && centerY < (db.y + db.height)) {
+      return display;
+    }
+  }
+  return screen.getPrimaryDisplay();
+}
+
+async function captureScreenThumbnailForBounds(bounds) {
+  const targetDisplay = getDisplayForCaptureBounds(bounds);
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: {
+      width: targetDisplay.size.width,
+      height: targetDisplay.size.height
+    }
+  });
+  const source = sources.find((item) => String(item.display_id) === String(targetDisplay.id)) || sources[0];
+  if (!source || source.thumbnail.isEmpty()) {
+    throw new Error('Could not capture screen thumbnail');
+  }
+  const screenshot = source.thumbnail;
+  const thumbSize = screenshot.getSize();
+  const scaleX = thumbSize.width / targetDisplay.bounds.width;
+  const scaleY = thumbSize.height / targetDisplay.bounds.height;
+  const relX = bounds.x - targetDisplay.bounds.x;
+  const relY = bounds.y - targetDisplay.bounds.y;
+  let cropX = Math.max(0, Math.round(relX * scaleX));
+  let cropY = Math.max(0, Math.round(relY * scaleY));
+  let cropW = Math.max(1, Math.round(bounds.width * scaleX));
+  let cropH = Math.max(1, Math.round(bounds.height * scaleY));
+  cropW = Math.min(cropW, thumbSize.width - cropX);
+  cropH = Math.min(cropH, thumbSize.height - cropY);
+  return {
+    screenshot,
+    cropRect: { x: cropX, y: cropY, width: cropW, height: cropH }
+  };
+}
+
+function scaleCaptureForReadableSave(image, minHeight = 480) {
+  const size = image.getSize();
+  if (!size.width || !size.height || size.height >= minHeight) {
+    return image;
+  }
+  const scale = minHeight / size.height;
+  return image.resize({
+    width: Math.max(1, Math.round(size.width * scale)),
+    height: minHeight,
+    quality: 'best'
+  });
+}
+
+function openScreenshotInEditor(screenshotContent) {
+  const payload = typeof screenshotContent === 'string'
+    ? { path: screenshotContent }
+    : (screenshotContent || {});
+  const imagePath = payload.path || (typeof screenshotContent === 'string' ? screenshotContent : null);
+  if (!imagePath) {
+    console.error('No image path provided:', screenshotContent);
+    return;
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide();
+  }
+
+  const sendMediaToEditor = () => {
+    try {
+      const ext = (path.extname(imagePath || '').toLowerCase() || '').replace('.', '');
+      const type = payload.type || (ext === 'mp4' || ext === 'mov' || ext === 'mkv' || ext === 'webm' ? 'video' : 'image');
+      if (type === 'video') {
+        editorWindow.webContents.send('load-video', imagePath);
+      } else {
+        editorWindow.webContents.send('load-image', imagePath);
+      }
+    } catch (e) {
+      editorWindow.webContents.send('load-image', imagePath);
+    }
+    editorWindow.show();
+    editorWindow.focus();
+  };
+
+  if (!editorWindow || editorWindow.isDestroyed()) {
+    editorWindow = new BrowserWindow({
+      width: 960,
+      height: 640,
+      backgroundColor: '#1f2937',
+      frame: false,
+      transparent: false,
+      show: false,
+      resizable: true,
+      icon: path.join(__dirname, 'icons', 'icon.ico'),
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+        enableRemoteModule: false
+      }
+    });
+
+    editorWindow.loadFile('image-editor.html');
+    editorWindow.webContents.once('did-finish-load', sendMediaToEditor);
+    editorWindow.on('closed', () => {
+      editorWindow = null;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+  } else {
+    sendMediaToEditor();
+  }
+}
+
+function hideMainForCapture() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) {
+    mainWindow.hide();
+  } else if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  }
+}
+
+function restoreMainAfterCapture() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setAlwaysOnTop(true);
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createCaptureBrowserWindow(extraOptions = {}) {
+  const bounds = getCaptureWindowBounds();
+  const iconPath = findIconFile();
+  const win = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    transparent: true,
+    frame: false,
+    fullscreen: false,
+    simpleFullscreen: false,
+    skipTaskbar: true,
+    show: false,
+    title: 'Tilbi Capture',
+    icon: iconPath || path.join(__dirname, 'icons', '128x128.png'),
+    alwaysOnTop: true,
+    hasShadow: false,
+    thickFrame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    enableLargerThanScreen: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      backgroundThrottling: false
+    },
+    ...extraOptions
+  });
+  try { win.setFullScreen(false); } catch (_) {}
+  try { win.setBounds(bounds); } catch (_) {}
+  try { win.setAlwaysOnTop(true, 'screen-saver'); } catch (_) {}
+  try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch (_) {}
+  return win;
+}
 let clipboardMonitorInterval = null;
 let lastClipboardContent = '';
 let isMonitoringActive = false;
@@ -185,6 +874,7 @@ function createMainWindow(options = {}) {
 
   // Listen for window minimize/restore events
   mainWindow.on('minimize', () => {
+    wasMinimizedForTaskbarCamera = false;
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('window-minimized');
     }
@@ -192,6 +882,14 @@ function createMainWindow(options = {}) {
   
   mainWindow.on('restore', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
+      if (isScreenshotMode) {
+        hideMainForCapture();
+        if (selectionWindow && !selectionWindow.isDestroyed()) {
+          selectionWindow.focus();
+        }
+        return;
+      }
+      wasMinimizedForTaskbarCamera = false;
       mainWindow.webContents.send('window-restored');
     }
   });
@@ -517,6 +1215,9 @@ function startClipboardMonitoring() {
     try {
       // Only monitor text content, ignore images
       const currentContent = clipboard.readText();
+      if (isHugeClipboardText(currentContent)) {
+        return;
+      }
       
       if (currentContent && 
           currentContent !== lastClipboardContent && 
@@ -535,20 +1236,13 @@ function startClipboardMonitoring() {
           
           store.set('clipboardHistory', history);
           console.log('Added to clipboard history');
-          
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('clipboard-data', {
-              history: history,
-              pinned: store.get('pinnedItems') || [],
-              screener: store.get('screenerItems') || []
-            });
-          }
+          broadcastClipboardData();
         }
       }
     } catch (error) {
       console.error('Error monitoring clipboard:', error);
     }
-  }, 100);
+  }, 300);
 }
 
 // Stop monitoring the clipboard
@@ -563,9 +1257,74 @@ function stopClipboardMonitoring() {
   isMonitoringActive = false;
 }
 
+function ensureProperDesktopShortcut() {
+  if (process.platform !== 'win32' || !app.isPackaged) {
+    return;
+  }
+
+  try {
+    const desktopDir = path.join(os.homedir(), 'Desktop');
+    if (!fs.existsSync(desktopDir)) {
+      return;
+    }
+
+    const badNames = [
+      'Tilbi.exe - Shortcut.lnk',
+      'Tilbi.exe.lnk',
+      'Loginner.lnk',
+      'Loginner.exe - Shortcut.lnk'
+    ];
+    let removedBadShortcut = false;
+
+    for (const name of badNames) {
+      const badPath = path.join(desktopDir, name);
+      if (fs.existsSync(badPath)) {
+        fs.unlinkSync(badPath);
+        removedBadShortcut = true;
+      }
+    }
+
+    const goodShortcut = path.join(desktopDir, 'Tilbi.lnk');
+    if (!removedBadShortcut && fs.existsSync(goodShortcut)) {
+      return;
+    }
+
+    const appDir = path.dirname(process.execPath);
+    const iconPath = path.join(appDir, 'icons', 'icon.ico');
+    const iconArg = fs.existsSync(iconPath) ? `${iconPath},0` : `${process.execPath},0`;
+    const { execFileSync } = require('child_process');
+    const script = [
+      '$shell = New-Object -ComObject WScript.Shell',
+      `$shortcut = $shell.CreateShortcut(${JSON.stringify(goodShortcut)})`,
+      `$shortcut.TargetPath = ${JSON.stringify(process.execPath)}`,
+      `$shortcut.WorkingDirectory = ${JSON.stringify(appDir)}`,
+      `$shortcut.IconLocation = ${JSON.stringify(iconArg)}`,
+      "$shortcut.Description = 'Tilbi'",
+      '$shortcut.Save()'
+    ].join('; ');
+
+    execFileSync(
+      'powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script],
+      { timeout: 10000, windowsHide: true }
+    );
+  } catch (error) {
+    console.warn('Could not normalize desktop shortcut:', error.message);
+  }
+}
+
 // Register global shortcut
 app.whenReady().then(() => {
   console.log('App ready, initializing...');
+  logMain('App ready', { version: app.getVersion(), pid: process.pid });
+  app.on('render-process-gone', (_event, webContents, details) => {
+    logMain('render-process-gone', { url: webContents && webContents.getURL ? webContents.getURL() : '', details });
+  });
+  app.on('child-process-gone', (_event, details) => {
+    logMain('child-process-gone', details);
+  });
+  configureAutoUpdater();
+  ensureProperDesktopShortcut();
   
   // Note: Removed permission handler to avoid IPC error 263
   // Media permissions will be handled by default Electron behavior
@@ -577,7 +1336,9 @@ app.whenReady().then(() => {
   if (!store.has('pinnedItems')) {
     store.set('pinnedItems', []);
   }
-  
+
+  purgeStaleScreenerLoadingItems(0);
+
   // Keep existing history as-is (including images)
   
   // Factory reset mode: clear all persisted content then quit
@@ -627,30 +1388,30 @@ app.whenReady().then(() => {
   console.log('Global shortcut registered: Ctrl+Shift+V');
 });
 
+function deferClipboardHistoryUpdate(text) {
+  setImmediate(() => {
+    try {
+      const history = store.get('clipboardHistory') || [];
+      if (history.includes(text)) {
+        return;
+      }
+      history.unshift(text);
+      if (history.length > MAX_HISTORY_ITEMS) {
+        history.splice(MAX_HISTORY_ITEMS);
+      }
+      store.set('clipboardHistory', history);
+      broadcastClipboardData();
+    } catch (_) {}
+  });
+}
+
 // Handle IPC events from renderer
 ipcMain.on('copy-to-clipboard', (event, text) => {
   try {
     clipboard.writeText(text);
     lastClipboardContent = text;
     console.log('Text copied to clipboard');
-    // Immediately add to history and refresh UI (no polling delay)
-    try {
-      let history = store.get('clipboardHistory') || [];
-      if (!history.includes(text)) {
-        history.unshift(text);
-        if (history.length > MAX_HISTORY_ITEMS) {
-          history = history.slice(0, MAX_HISTORY_ITEMS);
-        }
-        store.set('clipboardHistory', history);
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('clipboard-data', {
-            history: history,
-            pinned: store.get('pinnedItems') || [],
-            screener: store.get('screenerItems') || []
-          });
-        }
-      }
-    } catch (_) {}
+    deferClipboardHistoryUpdate(text);
   } catch (error) {
     console.error('Error copying text to clipboard:', error);
   }
@@ -980,85 +1741,85 @@ ipcMain.on('clear-all-screener', (event) => {
   }
 });
 
-// Screenshot functionality
-ipcMain.on('take-screenshot', async (event) => {
-  console.log('IPC: take-screenshot received');
+function destroySelectionWindow() {
+  if (selectionWindow && !selectionWindow.isDestroyed()) {
+    try { selectionWindow.removeAllListeners('closed'); } catch (_) {}
+    try { selectionWindow.close(); } catch (_) {}
+  }
+  selectionWindow = null;
+}
+
+function cancelCaptureMode() {
+  isScreenshotMode = false;
+  try { globalShortcut.unregister('Escape'); } catch (_) {}
+  destroySelectionWindow();
+  restoreMainAfterCapture();
+}
+
+function bindSelectionWindowLifecycle(win) {
+  if (!win || win.isDestroyed()) return;
+  win.on('closed', () => {
+    selectionWindow = null;
+    isScreenshotMode = false;
+    restoreMainAfterCapture();
+  });
+}
+
+// Screenshot functionality (camera icon + taskbar restore quick action)
+function openSelectionOverlay() {
+  if (selectionWindow && !selectionWindow.isDestroyed()) {
+    destroySelectionWindow();
+  }
   try {
-    // Hide main window immediately
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      console.log('Hiding main window for screenshot');
-      mainWindow.hide();
-      console.log('Main window hidden successfully');
-    }
-    
-    // Set screenshot mode flag
-    isScreenshotMode = true;
-    console.log('Screenshot mode enabled');
-    
-    // Get all displays
-    const displays = screen.getAllDisplays();
-    const primaryDisplay = screen.getPrimaryDisplay();
-
-    // Create a transparent window that covers all screens
-    console.log('Creating selection window...');
-    selectionWindow = new BrowserWindow({
-      x: 0,
-      y: 0,
-      width: displays.reduce((total, display) => Math.max(total, display.bounds.x + display.bounds.width), 0),
-      height: displays.reduce((total, display) => Math.max(total, display.bounds.y + display.bounds.height), 0),
-      transparent: true,
-      frame: false,
-      fullscreen: true,
-      skipTaskbar: true,
-      alwaysOnTop: true,
-      webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false
-      }
-    });
-    console.log('Selection window created successfully');
-
-    // Main window should already be hidden
-    // Just ensure it stays hidden
-    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-      console.log('Ensuring main window is hidden for screenshot');
-      mainWindow.hide();
-    }
-
-    // Load the selection overlay
-    console.log('Loading selection overlay...');
+    logMain('Opening capture overlay', getCaptureWindowBounds());
+    selectionWindow = createCaptureBrowserWindow();
+    bindSelectionWindowLifecycle(selectionWindow);
     selectionWindow.loadFile(path.join(__dirname, 'selection-overlay.html'));
-    console.log('Selection overlay loaded');
-
-    // Show the window after a short delay to ensure it's ready
-    setTimeout(() => {
-      console.log('Showing selection window');
+    selectionWindow.once('ready-to-show', () => {
       if (selectionWindow && !selectionWindow.isDestroyed()) {
         selectionWindow.show();
         selectionWindow.focus();
-      } else {
-        console.error('Selection window was destroyed before showing');
-        // Reset screenshot mode flag
-        isScreenshotMode = false;
-        // Restore main window
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.setAlwaysOnTop(true);
-          mainWindow.show();
-          mainWindow.focus();
-        }
       }
-    }, 100);
+    });
+    selectionWindow.webContents.on('render-process-gone', (_event, details) => {
+      logMain('Capture overlay renderer gone', details);
+      cancelCaptureMode();
+    });
+  } catch (error) {
+    logMain('Error opening selection overlay', error);
+    cancelCaptureMode();
+  }
+}
+
+async function startScreenshotCapture() {
+  if (isScreenshotMode) {
+    console.log('Screenshot capture already active - refocusing overlay');
+    openSelectionOverlay();
+    return;
+  }
+  console.log('Starting screenshot capture');
+  try {
+    hideMainForCapture();
+    isScreenshotMode = true;
+    openSelectionOverlay();
+    try {
+      globalShortcut.unregister('Escape');
+      globalShortcut.register('Escape', () => {
+        if (isScreenshotMode) cancelCaptureMode();
+      });
+    } catch (err) {
+      console.warn('Could not register Escape shortcut for capture cancel:', err);
+    }
   } catch (error) {
     console.error('Error starting area selection:', error);
-    // Reset screenshot mode flag
     isScreenshotMode = false;
-    // Restore main window on error
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setAlwaysOnTop(true);
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    restoreMainAfterCapture();
   }
+}
+
+ipcMain.on('take-screenshot', () => {
+  console.log('IPC: take-screenshot received');
+  startScreenshotCapture();
 });
 
 // Handle the selected area capture
@@ -1070,36 +1831,23 @@ ipcMain.on('capture-selected-area', async (event, bounds) => {
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const primaryDisplay = screen.getPrimaryDisplay();
-    const source = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: {
-        width: primaryDisplay.bounds.width,
-        height: primaryDisplay.bounds.height
-      }
-    }).then(sources => sources[0]);
+    const { screenshot, cropRect } = await captureScreenThumbnailForBounds(bounds);
+    let croppedImage = screenshot.crop(cropRect);
 
-    if (source) {
-      const screenshot = source.thumbnail;
-      const cropRect = {
-        x: bounds.x,
-        y: bounds.y,
-        width: bounds.width,
-        height: bounds.height
-      };
-      let croppedImage = screenshot.crop(cropRect);
-
+    if (croppedImage && !croppedImage.isEmpty()) {
       // If a circular selection was requested, apply a circle mask
       if (bounds && bounds.shape === 'circle' && bounds.circle && typeof bounds.circle.r === 'number') {
         console.log('Applying circle mask:', bounds.circle);
         try {
-          const localCenterX = Math.round(bounds.circle.cx - cropRect.x);
-          const localCenterY = Math.round(bounds.circle.cy - cropRect.y);
-          const radius = Math.max(1, Math.round(bounds.circle.r));
+          const targetDisplay = getDisplayForCaptureBounds(bounds);
+          const scaleX = targetDisplay.size.width / targetDisplay.bounds.width;
+          const scaleY = targetDisplay.size.height / targetDisplay.bounds.height;
+          const localCenterX = Math.round((bounds.circle.cx - bounds.x) * scaleX);
+          const localCenterY = Math.round((bounds.circle.cy - bounds.y) * scaleY);
+          const radius = Math.max(1, Math.round(bounds.circle.r * Math.min(scaleX, scaleY)));
 
           console.log(`Circle params: center(${localCenterX}, ${localCenterY}), radius=${radius}, crop=${cropRect.width}x${cropRect.height}`);
 
-          // Get bitmap data correctly
           const w = cropRect.width;
           const h = cropRect.height;
           const bmp = Buffer.from(croppedImage.toBitmap()); // This returns BGRA
@@ -1133,6 +1881,8 @@ ipcMain.on('capture-selected-area', async (event, bounds) => {
         console.log('No circle mask requested, bounds:', bounds);
       }
 
+      croppedImage = scaleCaptureForReadableSave(croppedImage);
+
       // Generate filename and full path
       const filename = generateScreenshotFilename();
       const filepath = path.join(userScreenshotsPath, filename);
@@ -1150,7 +1900,6 @@ ipcMain.on('capture-selected-area', async (event, bounds) => {
         // Create screenshot entry with file info
         const screenshotEntry = {
           path: filepath,
-          dataUrl: croppedImage.toDataURL(),
           timestamp: Date.now(),
           shape: bounds && bounds.shape ? bounds.shape : 'rect',
           circle: bounds && bounds.circle ? bounds.circle : undefined
@@ -1165,7 +1914,7 @@ ipcMain.on('capture-selected-area', async (event, bounds) => {
           screenerItems = screenerItems.slice(0, MAX_SCREENER_ITEMS);
         }
         
-        store.set('screenerItems', screenerItems);
+        store.set('screenerItems', screenerItems.map(stripInlineMediaFromScreenerItem));
         
         // Copy to clipboard
         clipboard.writeImage(croppedImage);
@@ -1174,79 +1923,73 @@ ipcMain.on('capture-selected-area', async (event, bounds) => {
           selectionWindow.close();
           selectionWindow = null;
         }
-        
-        // Reset screenshot mode flag
         isScreenshotMode = false;
-        
+        restoreMainAfterCapture();
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.setAlwaysOnTop(true);
-          mainWindow.show();
-          mainWindow.focus();
           mainWindow.webContents.send('clipboard-data', {
             history: store.get('clipboardHistory') || [],
             pinned: store.get('pinnedItems') || [],
-            screener: screenerItems
+            screener: screenerItems.map(stripInlineMediaFromScreenerItem)
           });
-          
           mainWindow.webContents.send('switch-to-screener');
         }
       } catch (error) {
         console.error('Error saving or processing screenshot:', error);
-        // Reset screenshot mode flag
         isScreenshotMode = false;
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.setAlwaysOnTop(true);
-          mainWindow.show();
-          mainWindow.focus();
-        }
         if (selectionWindow) {
           selectionWindow.close();
           selectionWindow = null;
         }
+        restoreMainAfterCapture();
       }
+    } else {
+      throw new Error('Captured image was empty');
     }
   } catch (error) {
     console.error('Error capturing selected area:', error);
-    // Reset screenshot mode flag
     isScreenshotMode = false;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setAlwaysOnTop(true);
-      mainWindow.show();
-      mainWindow.focus();
-    }
     if (selectionWindow) {
       selectionWindow.close();
       selectionWindow = null;
     }
+    restoreMainAfterCapture();
   }
 });
 
 // Handle selection cancellation
 ipcMain.on('cancel-selection', () => {
-  // Reset screenshot mode flag
-  isScreenshotMode = false;
-  if (selectionWindow) {
-    selectionWindow.close();
-    selectionWindow = null;
-  }
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.setAlwaysOnTop(true);
-    mainWindow.show();
-    mainWindow.focus();
-  }
+  cancelCaptureMode();
+});
+
+ipcMain.on('dismiss-screener-loading', (event, payload) => {
+  const id = payload && payload.id ? payload.id : null;
+  removeScreenerLoadingById(id);
 });
 
 // Handle full webpage capture
 ipcMain.on('capture-full-webpage', async (event, urlInput) => {
   let webpageWindow = null;
+  let placeholderId = null;
+  let captureWatchdog = null;
+  const clearCaptureWatchdog = () => {
+    if (captureWatchdog) {
+      clearTimeout(captureWatchdog);
+      captureWatchdog = null;
+    }
+  };
+  const failCapture = (message) => {
+    clearCaptureWatchdog();
+    const friendly = message || WEBPAGE_CAPTURE_SORRY_MSG;
+    replaceScreenerLoadingWithError(placeholderId, friendly);
+    isScreenshotMode = false;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('webpage-capture-failed', { message: friendly });
+      mainWindow.webContents.send('switch-to-screener');
+      restoreMainAfterCapture();
+    }
+  };
   try {
     console.log('Starting full webpage capture for:', urlInput);
-    
-    // Close selection window IMMEDIATELY
-    if (selectionWindow) {
-      selectionWindow.close();
-      selectionWindow = null;
-    }
     
     // Normalize payload (supports string or { url, interactive })
     let interactive = false;
@@ -1298,130 +2041,34 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
     
     console.log('Loading webpage:', url);
 
-    // Add a loading placeholder to Screener to avoid confusion during long captures
-    const placeholderId = `loading-${Date.now()}`;
-    try {
-      let screenerItems = store.get('screenerItems') || [];
-      const loadingEntry = {
-        id: placeholderId,
-        type: 'loading',
-        timestamp: Date.now(),
-        url: url,
-        message: 'Capturing webpage...'
-      };
-      screenerItems.unshift(loadingEntry);
-      store.set('screenerItems', screenerItems);
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.setAlwaysOnTop(true);
-        mainWindow.show();
-        mainWindow.focus();
-        mainWindow.webContents.send('clipboard-data', {
-          history: store.get('clipboardHistory') || [],
-          pinned: store.get('pinnedItems') || [],
-          screener: screenerItems
-        });
-        mainWindow.webContents.send('switch-to-screener');
-      }
-    } catch (_) {}
+    isScreenshotMode = true;
+    if (selectionWindow) {
+      selectionWindow.close();
+      selectionWindow = null;
+    }
+    hideMainForCapture();
+
+    placeholderId = addScreenerLoadingPlaceholder(
+      url,
+      interactive ? 'Log in, then capture the page' : 'Capturing webpage...'
+    );
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(true);
+      mainWindow.show();
+      mainWindow.focus();
+      broadcastClipboardData();
+      mainWindow.webContents.send('switch-to-screener');
+    }
 
     // Helper that performs the actual full-page capture for a given window
     const performFullPageCapture = async (targetWindow, targetUrl) => {
-      // Wait for page to fully load
-      console.log('Waiting for page load...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Scroll through the page to trigger lazy-loaded content
-      console.log('Scrolling to load content...');
-      await targetWindow.webContents.executeJavaScript(`
-      (async () => {
-        // Force all images to load
-        const images = document.querySelectorAll('img[loading="lazy"]');
-        images.forEach(img => img.loading = 'eager');
-        
-        const scrollHeight = Math.max(
-          document.documentElement.scrollHeight,
-          document.body.scrollHeight
-        );
-        const viewportHeight = window.innerHeight;
-        const scrollSteps = Math.ceil(scrollHeight / viewportHeight);
-        
-        // Scroll down in steps
-        for (let i = 0; i <= scrollSteps; i++) {
-          window.scrollTo(0, i * viewportHeight);
-          await new Promise(r => setTimeout(r, 400));
-        }
-        
-        // Scroll to bottom
-        window.scrollTo(0, document.body.scrollHeight);
-        await new Promise(r => setTimeout(r, 1000));
-        
-        // Back to top
-        window.scrollTo(0, 0);
-        await new Promise(r => setTimeout(r, 500));
-        
-        return true;
-      })()
-    `);
-      
-      console.log('Measuring page dimensions...');
-      
-      // Get the full page dimensions after scrolling
-      const pageSize = await targetWindow.webContents.executeJavaScript(`
-      ({
-        width: Math.max(
-          document.documentElement.scrollWidth,
-          document.documentElement.offsetWidth,
-          document.documentElement.clientWidth,
-          document.body.scrollWidth,
-          document.body.offsetWidth,
-          document.body.clientWidth
-        ),
-        height: Math.max(
-          document.documentElement.scrollHeight,
-          document.documentElement.offsetHeight,
-          document.documentElement.clientHeight,
-          document.body.scrollHeight,
-          document.body.offsetHeight,
-          document.body.clientHeight
-        )
-      })
-    `);
-      
-      console.log('Full page size:', pageSize);
-      
-      // Resize window to full page size (with sane caps)
-      const widthCap = hiRes ? 8000 : 4000;
-      const heightCap = hiRes ? 60000 : 30000;
-      const targetWidth = Math.min(Math.max(pageSize.width, 800), widthCap);
-      const targetHeight = Math.min(Math.max(pageSize.height, 600), heightCap);
-      targetWindow.setContentSize(targetWidth, targetHeight);
-      
-      // Wait for resize and all content to render
-      console.log('Waiting for final render...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Retry logic for capture to avoid empty images on some sites
-      let image = null;
-      const maxAttempts = 3;
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        console.log(`Capturing page (attempt ${attempt}/${maxAttempts})...`);
-        image = await targetWindow.webContents.capturePage();
-        const size = image.getSize ? image.getSize() : { width: 0, height: 0 };
-        const valid = image && !image.isEmpty() && size.width >= 10 && size.height >= 10;
-        if (valid) break;
-        console.warn('Capture was empty or too small, waiting and retrying...');
-        await new Promise(resolve => setTimeout(resolve, 1200));
+      console.log('Capturing full webpage...');
+      let image = await captureWebpageImage(targetWindow, hiRes);
+      if (!isValidCaptureImage(image)) {
+        throw new Error(WEBPAGE_CAPTURE_SORRY_MSG);
       }
 
-      if (!image || image.isEmpty()) {
-        // As a last resort, try capturing just the visible viewport
-        console.warn('Falling back to viewport capture');
-        image = await targetWindow.webContents.capturePage({ x: 0, y: 0, width: Math.min(targetWidth, 4000), height: Math.min(targetHeight, 30000) });
-      }
-
-      if (!image || image.isEmpty()) {
-        throw new Error('Captured image is empty after retries');
-      }
+      image = scaleCaptureForReadableSave(image);
       
       console.log('✓ Webpage captured successfully');
       
@@ -1436,7 +2083,6 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
       // Create screenshot entry
       const screenshotEntry = {
         path: filepath,
-        dataUrl: image.toDataURL(),
         timestamp: Date.now(),
         shape: 'webpage',
         url: targetUrl
@@ -1489,6 +2135,8 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
         mainWindow.webContents.send('switch-to-screener');
         console.log('✓ UI updated and switched to screener tab');
       }
+      clearCaptureWatchdog();
+      isScreenshotMode = false;
     };
 
     if (interactive) {
@@ -1538,11 +2186,7 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
         } catch (err) {
           console.error('Interactive capture failed:', err);
           globalShortcut.unregister('CommandOrControl+Shift+S');
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.executeJavaScript(`
-              alert('Failed to capture webpage: ${err.message.replace(/'/g, "\\'")}');
-            `);
-          }
+          failCapture(WEBPAGE_CAPTURE_SORRY_MSG);
           if (webpageWindow && !webpageWindow.isDestroyed()) {
             webpageWindow.close();
           }
@@ -1569,22 +2213,31 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
 
       // Register IPC handler for close button
       const closeHandler = async () => {
+        clearCaptureWatchdog();
+        removeScreenerLoadingById(placeholderId);
+        isScreenshotMode = false;
         cleanupInteractive();
         if (webpageWindow && !webpageWindow.isDestroyed()) {
           webpageWindow.close();
         }
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.setAlwaysOnTop(true);
-          mainWindow.show();
-          mainWindow.focus();
-        }
+        restoreMainAfterCapture();
       };
       ipcMain.once('close-interactive-capture', closeHandler);
 
       // Clean up when window closes (handled in cleanupInteractive too)
+      captureWatchdog = setTimeout(() => {
+        failCapture(WEBPAGE_CAPTURE_SORRY_MSG);
+        if (webpageWindow && !webpageWindow.isDestroyed()) {
+          try { webpageWindow.close(); } catch (_) {}
+        }
+      }, 600000);
+
       webpageWindow.on('closed', () => {
-        try { globalShortcut.unregister('CommandOrControl+Shift+S'); } catch(_) {}
-        try { ipcMain.removeListener('capture-from-webpage', captureHandler); } catch(_) {}
+        clearCaptureWatchdog();
+        removeScreenerLoadingById(placeholderId);
+        isScreenshotMode = false;
+        cleanupInteractive();
+        restoreMainAfterCapture();
         console.log('Webpage window closed, cleaned up');
       });
 
@@ -1595,6 +2248,9 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
       // Function to inject capture button (will be called after page loads)
       const injectCaptureButton = async () => {
         try {
+          try {
+            await webpageWindow.webContents.executeJavaScript(PREPARE_PAGE_FOR_CAPTURE_JS);
+          } catch (_) {}
           await webpageWindow.webContents.executeJavaScript(`
             (function() {
               // Remove existing button if present
@@ -1742,28 +2398,21 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
         try { ipcMain.removeListener('close-interactive-capture', closeHandler); } catch (_) {}
         try { if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.close(); } catch (_) {}
         overlayWindow = null;
-        // Ensure main window returns
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          try {
-            mainWindow.setAlwaysOnTop(true);
-            mainWindow.show();
-            mainWindow.focus();
-          } catch (_) {}
-        }
       };
-
-      webpageWindow.on('closed', cleanupInteractive);
-      webpageWindow.on('close', cleanupInteractive);
 
       // ESC to cancel interactive capture cleanly
       webpageWindow.webContents.on('before-input-event', (event, input) => {
         try {
           if (input.key === 'Escape') {
             event.preventDefault();
+            clearCaptureWatchdog();
+            removeScreenerLoadingById(placeholderId);
+            isScreenshotMode = false;
             cleanupInteractive();
             if (webpageWindow && !webpageWindow.isDestroyed()) {
               webpageWindow.close();
             }
+            restoreMainAfterCapture();
           }
         } catch (_) {}
       });
@@ -1772,68 +2421,67 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
       return;
     }
 
+    captureWatchdog = setTimeout(() => {
+      console.warn('Webpage capture timed out');
+      failCapture(WEBPAGE_CAPTURE_SORRY_MSG);
+      if (webpageWindow && !webpageWindow.isDestroyed()) {
+        try { webpageWindow.close(); } catch (_) {}
+      }
+    }, WEBPAGE_CAPTURE_TIMEOUT_MS);
+
     // Non-interactive: hidden offscreen window
     webpageWindow = new BrowserWindow({
-      width: 1920,
-      height: 1080,
+      width: 1440,
+      height: 900,
       show: false,
+      paintWhenInitiallyHidden: true,
+      skipTaskbar: true,
       icon: path.join(__dirname, 'icons', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
         webSecurity: true,
-        offscreen: true
+        backgroundThrottling: false,
+        offscreen: false
       }
     });
 
     // Load the webpage
     console.log('Loading URL...');
     await webpageWindow.loadURL(url, { timeout: 30000 });
+    await new Promise((resolve) => {
+      const wc = webpageWindow.webContents;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const onStop = () => setTimeout(finish, 500);
+      wc.once('did-stop-loading', onStop);
+      setTimeout(finish, 4000);
+    });
 
-    await performFullPageCapture(webpageWindow, url);
-    
-    // Close webpage window and restore main window
-    if (webpageWindow) {
+    await Promise.race([
+      performFullPageCapture(webpageWindow, url),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(WEBPAGE_CAPTURE_SORRY_MSG)), WEBPAGE_CAPTURE_TIMEOUT_MS);
+      })
+    ]);
+
+    if (webpageWindow && !webpageWindow.isDestroyed()) {
       webpageWindow.close();
       webpageWindow = null;
     }
-    // UI restore handled in performFullPageCapture
     
   } catch (error) {
     console.error('Error capturing full webpage:', error);
-    
-    // Show error to user
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.executeJavaScript(`
-        alert('Failed to capture webpage: ${error.message.replace(/'/g, "\\'")}');
-      `);
-    }
-    
-    // Remove loading placeholder on error
-    try {
-      let screenerItems = store.get('screenerItems') || [];
-      const filtered = screenerItems.filter(it => !(typeof it === 'object' && it && it.id === placeholderId));
-      if (filtered.length !== screenerItems.length) {
-        store.set('screenerItems', filtered);
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('clipboard-data', {
-            history: store.get('clipboardHistory') || [],
-            pinned: store.get('pinnedItems') || [],
-            screener: filtered
-          });
-        }
-      }
-    } catch (_) {}
-
-    // Clean up
+    const msg = (error && error.message && error.message.includes('Sorry'))
+      ? error.message
+      : WEBPAGE_CAPTURE_SORRY_MSG;
+    failCapture(msg);
     if (webpageWindow && !webpageWindow.isDestroyed()) {
       webpageWindow.close();
-    }
-    
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setAlwaysOnTop(true);
-      mainWindow.show();
-      mainWindow.focus();
     }
   }
 });
@@ -1893,26 +2541,13 @@ ipcMain.on('start-video-recording', async (event) => {
       mainWindow.webContents.send('switch-to-screener');
     } catch (_) {}
 
-    // Get all displays
-    const displays = screen.getAllDisplays();
-    const primaryDisplay = screen.getPrimaryDisplay();
+    if (selectionWindow && !selectionWindow.isDestroyed()) {
+      try { selectionWindow.close(); } catch (_) {}
+      selectionWindow = null;
+    }
 
-    // Create a transparent window that covers all screens for area selection
-    selectionWindow = new BrowserWindow({
-      x: 0,
-      y: 0,
-      width: displays.reduce((total, display) => Math.max(total, display.bounds.x + display.bounds.width), 0),
-      height: displays.reduce((total, display) => Math.max(total, display.bounds.y + display.bounds.height), 0),
-      transparent: true,
-      frame: false,
-      fullscreen: true,
-      skipTaskbar: true,
-      alwaysOnTop: true,
-      webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false
-      }
-    });
+    selectionWindow = createCaptureBrowserWindow();
+    bindSelectionWindowLifecycle(selectionWindow);
 
     // Main window should already be hidden
     // Just ensure it stays hidden
@@ -2427,8 +3062,12 @@ ipcMain.handle('subscription-get-status', async () => {
 });
 
 // Create subscription
-ipcMain.handle('subscription-create', async (event, { planType }) => {
-  return await subscription.createSubscription(planType);
+ipcMain.handle('subscription-create', async (event, { planType, provider = 'stripe' }) => {
+  return await subscription.createSubscription(planType, provider);
+});
+
+ipcMain.handle('subscription-confirm-paypal', async (event, { subscriptionId }) => {
+  return await subscription.confirmPayPalSubscription(subscriptionId);
 });
 
 // Cancel subscription
@@ -2468,62 +3107,31 @@ ipcMain.on('move-video-window', (event, position) => {
 function writeFilesToClipboardWindows(filePaths) {
   if (process.platform !== 'win32') return false;
   try {
-    const { execSync } = require('child_process');
-    
-    // Clear clipboard first
-    try { clipboard.clear(); } catch (_) {}
-    
-    // Use PowerShell to write file to clipboard - this ALWAYS works in Windows
-    const filePath = filePaths[0].replace(/'/g, "''"); // Escape single quotes
-    const psScript = `Set-Clipboard -LiteralPath '${filePath}'`;
-    
-    try {
-      execSync(`powershell.exe -NoProfile -Command "${psScript}"`, {
-        timeout: 2000,
-        windowsHide: true
-      });
-      console.log('✅ PowerShell clipboard write successful');
-      return true;
-    } catch (psError) {
-      console.warn('⚠️ PowerShell method failed, trying manual CF_HDROP:', psError.message);
-      
-      // Fallback to manual CF_HDROP
-      // Build DROPFILES struct (20 bytes) + UTF-16LE file list + double null
-      const headerSize = 20;
-      const filesUtf16 = filePaths.map(p => Buffer.from(p + '\u0000', 'utf16le'));
-      const filesLen = filesUtf16.reduce((t, b) => t + b.length, 0);
-      const doubleNull = Buffer.from('\u0000\u0000', 'utf16le');
-      const totalSize = headerSize + filesLen + doubleNull.length;
-      const buf = Buffer.alloc(totalSize);
-      
-      buf.writeUInt32LE(headerSize, 0);
-      buf.writeUInt32LE(0, 12);
-      buf.writeUInt32LE(1, 16); // fWide = 1 for Unicode
-      
-      let offset = headerSize;
-      for (const b of filesUtf16) {
-        b.copy(buf, offset);
-        offset += b.length;
-      }
-      doubleNull.copy(buf, offset);
+    if (!filePaths || !filePaths.length) return false;
 
-      clipboard.writeBuffer('CF_HDROP', buf);
-      
-      const dropEffect = Buffer.alloc(4);
-      dropEffect.writeUInt32LE(1, 0);
-      clipboard.writeBuffer('Preferred DropEffect', dropEffect);
+    const headerSize = 20;
+    const filesUtf16 = filePaths.map(p => Buffer.from(p + '\u0000', 'utf16le'));
+    const filesLen = filesUtf16.reduce((t, b) => t + b.length, 0);
+    const doubleNull = Buffer.from('\u0000\u0000', 'utf16le');
+    const totalSize = headerSize + filesLen + doubleNull.length;
+    const buf = Buffer.alloc(totalSize);
 
-      try {
-        const first = filePaths[0];
-        const uriList = Buffer.from(filePaths.map(p => 'file:///' + p.replace(/\\/g, '/')).join('\r\n') + '\r\n', 'utf8');
-        clipboard.writeBuffer('text/uri-list', uriList);
-        clipboard.writeText(first);
-        const fnameW = Buffer.from(first + '\u0000', 'utf16le');
-        clipboard.writeBuffer('FileNameW', fnameW);
-      } catch (e) { console.warn('Extra formats failed:', e); }
-      
-      return true;
+    buf.writeUInt32LE(headerSize, 0);
+    buf.writeUInt32LE(0, 12);
+    buf.writeUInt32LE(1, 16);
+
+    let offset = headerSize;
+    for (const b of filesUtf16) {
+      b.copy(buf, offset);
+      offset += b.length;
     }
+    doubleNull.copy(buf, offset);
+
+    clipboard.writeBuffer('CF_HDROP', buf);
+    const dropEffect = Buffer.alloc(4);
+    dropEffect.writeUInt32LE(1, 0);
+    clipboard.writeBuffer('Preferred DropEffect', dropEffect);
+    return true;
   } catch (e) {
     console.warn('writeFilesToClipboardWindows failed:', e);
     return false;
@@ -2655,9 +3263,53 @@ ipcMain.on('ensure-window-visible', () => {
   }
 });
 
+ipcMain.on('start-native-drag', (event, payload) => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try { mainWindow.setAlwaysOnTop(false); } catch (_) {}
+    }
+    if (!payload) {
+      event.returnValue = false;
+      return;
+    }
+    let filePath = payload.path;
+
+    if (!filePath && payload.dataUrl) {
+      const img = nativeImage.createFromDataURL(payload.dataUrl);
+      if (!img.isEmpty()) {
+        filePath = path.join(app.getPath('temp'), `tilbi-drag-${Date.now()}.png`);
+        fs.writeFileSync(filePath, img.toPNG());
+      }
+    }
+
+    if (!filePath || !fs.existsSync(filePath)) {
+      event.returnValue = false;
+      return;
+    }
+
+    event.sender.startDrag({
+      file: filePath,
+      icon: makeDragIcon(filePath)
+    });
+    event.returnValue = true;
+  } catch (err) {
+    console.error('start-native-drag failed:', err);
+    event.returnValue = false;
+  }
+});
+
+ipcMain.on('drag-ended', () => {
+  if (!isScreenshotMode && mainWindow && !mainWindow.isDestroyed()) {
+    try { mainWindow.setAlwaysOnTop(true); } catch (_) {}
+  }
+});
+
 // Handle second instance
 app.on('second-instance', () => {
   console.log('Second instance detected, focusing the main window');
+  if (isScreenshotMode) {
+    try { cancelCaptureMode(); } catch (_) {}
+  }
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
@@ -2948,6 +3600,8 @@ function copyImageFromPayload(payload) {
     throw new Error('No valid image data to copy');
   }
 
+  image = scaleCaptureForReadableSave(image);
+
   // Clear first to avoid conflicting formats
   try { clipboard.clear(); } catch (_) {}
 
@@ -2962,12 +3616,7 @@ function copyImageFromPayload(payload) {
     }
   } catch (e) { console.warn('writeBuffer image/png failed:', e?.message || e); }
 
-  try {
-    const dataUrl = image.toDataURL();
-    if (dataUrl) {
-      clipboard.writeHTML(`<img src="${dataUrl}">`);
-    }
-  } catch (e) { console.warn('writeHTML img failed:', e?.message || e); }
+  // Do not write base64 HTML copies — that freezes the UI on large screenshots.
   const ok = clipboard.availableFormats().some(f => f.startsWith('image/')) || !clipboard.readImage().isEmpty();
   console.log(ok ? 'Image successfully copied to clipboard' : 'Clipboard write returned empty');
   if (!ok) throw new Error('Clipboard write failed');
@@ -3041,29 +3690,17 @@ ipcMain.handle('copy-image', async (event, payload) => {
       console.log('❌ FAILED: No valid image created');
       throw new Error('Invalid image data - could not create nativeImage');
     }
+
+    image = scaleCaptureForReadableSave(image);
     
     console.log('Image created. FilePath:', filePath || 'NONE');
     
     // Clear clipboard first
     try { clipboard.clear(); } catch (_) {}
-    
-    // If we have a file path, write it to clipboard as file
-    if (filePath) {
-      console.log('📂 Attempting to write file to clipboard:', filePath);
-      const success = writeFilesToClipboardWindows([filePath]);
-      if (success) {
-        console.log('✅ SUCCESS: File written to clipboard for Desktop paste');
-        console.log('========================================\n');
-        return { success: true };
-      } else {
-        console.log('❌ File write FAILED, falling back to image');
-      }
-    } else {
-      console.log('⚠️ No file path available, writing as image bitmap only');
-    }
-    
-    // Fallback or primary: write as image bitmap
     clipboard.writeImage(image);
+    if (filePath) {
+      try { writeFilesToClipboardWindows([filePath]); } catch (_) {}
+    }
     const formats = clipboard.availableFormats();
     console.log('Clipboard formats after writeImage:', formats);
     const ok = formats.some(f => f.startsWith('image/')) || !clipboard.readImage().isEmpty();
@@ -3107,18 +3744,11 @@ ipcMain.on('add-to-history', (event, content) => {
 
 // Add handler for opening screenshots
 ipcMain.on('open-screenshot', (event, filepath) => {
-  shell.openPath(filepath);
-  
-  // Prevent main window from minimizing when opening screenshot
-  setTimeout(() => {
-    if (!isScreenshotMode && mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore();
-      }
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  }, 50);
+  try {
+    openScreenshotInEditor(typeof filepath === 'string' ? { path: filepath } : filepath);
+  } catch (error) {
+    console.error('Error opening screenshot:', error);
+  }
 });
 
 // Add handler for opening videos
@@ -3156,75 +3786,11 @@ ipcMain.on('open-with', (event, filepath) => {
   }
 });
 
-let editorWindow = null;
-
 // Add handler for opening image editor
 ipcMain.on('open-image-editor', (event, screenshotContent) => {
   try {
     console.log('Received open-image-editor request with:', screenshotContent);
-    const imagePath = screenshotContent.path || screenshotContent;
-    
-    if (!imagePath) {
-      console.error('No image path provided:', screenshotContent);
-      return;
-    }
-    
-    console.log('Opening image editor with path:', imagePath);
-    
-    // Hide main window when opening editor
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.hide();
-    }
-    
-    if (!editorWindow || editorWindow.isDestroyed()) {
-      editorWindow = new BrowserWindow({
-        width: 960, // 20% smaller than 1200
-        height: 640, // 20% smaller than 800
-        backgroundColor: '#1f2937',
-        frame: false,
-        transparent: false,
-        show: false,
-        resizable: true,
-        icon: path.join(__dirname, 'icons', 'icon.ico'),
-        webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false,
-          enableRemoteModule: false
-        }
-      });
-
-      editorWindow.loadFile('image-editor.html');
-      
-      editorWindow.webContents.once('did-finish-load', () => {
-        try {
-          const ext = (path.extname(imagePath || '').toLowerCase() || '').replace('.', '');
-          const type = (screenshotContent && screenshotContent.type) || (ext === 'mp4' || ext === 'mov' || ext === 'mkv' || ext === 'webm' ? 'video' : 'image');
-          console.log('Editor window loaded, detected type:', type, 'path:', imagePath);
-          if (type === 'video') {
-            editorWindow.webContents.send('load-video', imagePath);
-          } else {
-            editorWindow.webContents.send('load-image', imagePath);
-          }
-        } catch (e) {
-          console.error('Error sending media to editor:', e);
-          editorWindow.webContents.send('load-image', imagePath);
-        }
-        editorWindow.show();
-        editorWindow.focus();
-      });
-
-      editorWindow.on('closed', () => {
-        editorWindow = null;
-        // Show main window when editor closes
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      });
-    } else {
-      editorWindow.webContents.send('load-image', imagePath);
-      editorWindow.focus();
-    }
+    openScreenshotInEditor(screenshotContent);
   } catch (error) {
     console.error('Error opening image editor:', error);
   }
@@ -3234,6 +3800,87 @@ ipcMain.on('open-image-editor', (event, screenshotContent) => {
 ipcMain.on('close-editor-and-show-main', () => {
   if (editorWindow && !editorWindow.isDestroyed()) {
     editorWindow.close();
+  }
+});
+
+ipcMain.handle('share-editor-image', async (event, { mode, imageData, sourcePath }) => {
+  try {
+    if (!imageData || typeof imageData !== 'string') {
+      throw new Error('No image data to share');
+    }
+
+    let image = nativeImage.createFromDataURL(imageData);
+    if (!image || image.isEmpty()) {
+      throw new Error('Invalid image data');
+    }
+    image = scaleCaptureForReadableSave(image);
+
+    const filename = generateScreenshotFilename().replace('Screenshot_', 'Share_');
+    const filepath = path.join(userScreenshotsPath, filename);
+    fs.writeFileSync(filepath, image.toPNG());
+
+    const copyShareImageToClipboard = () => {
+      try { clipboard.clear(); } catch (_) {}
+      clipboard.writeImage(image);
+      try {
+        const png = image.toPNG();
+        if (png && png.length) clipboard.writeBuffer('image/png', png);
+      } catch (_) {}
+      writeFilesToClipboardWindows([filepath]);
+    };
+
+    const launchWhatsApp = async () => {
+      const localApp = path.join(process.env.LOCALAPPDATA || '', 'WhatsApp', 'WhatsApp.exe');
+      if (fs.existsSync(localApp)) {
+        spawn(localApp, [], { detached: true, stdio: 'ignore' }).unref();
+        return;
+      }
+      try {
+        await shell.openExternal('whatsapp://send');
+        return;
+      } catch (_) {}
+      await shell.openExternal('https://web.whatsapp.com/');
+    };
+
+    if (mode === 'whatsapp') {
+      copyShareImageToClipboard();
+      await launchWhatsApp();
+      return { success: true, path: filepath };
+    }
+
+    if (mode === 'email') {
+      copyShareImageToClipboard();
+      const subject = encodeURIComponent('Image from Tilbi');
+      const body = encodeURIComponent('The image is on your clipboard. Paste it into the email with Ctrl+V.');
+      await shell.openExternal(`mailto:?subject=${subject}&body=${body}`);
+      return { success: true, path: filepath };
+    }
+
+    if (mode === 'copy') {
+      copyShareImageToClipboard();
+      return { success: true, path: filepath };
+    }
+
+    if (mode === 'reveal') {
+      shell.showItemInFolder(filepath);
+      return { success: true, path: filepath };
+    }
+
+    if (mode === 'open-with') {
+      if (process.platform === 'win32') {
+        const child = spawn('rundll32.exe', ['shell32.dll,OpenAs_RunDLL', filepath], { detached: true, stdio: 'ignore' });
+        child.unref();
+      } else {
+        shell.openPath(filepath);
+      }
+      return { success: true, path: filepath };
+    }
+
+    shell.openPath(filepath);
+    return { success: true, path: filepath };
+  } catch (error) {
+    console.error('share-editor-image failed:', error);
+    return { success: false, error: error.message };
   }
 });
 
@@ -3254,7 +3901,6 @@ ipcMain.on('save-edited-image', (event, imageData) => {
     // Create screenshot entry
     const screenshotEntry = {
       path: filepath,
-      dataUrl: imageData,
       timestamp: Date.now()
     };
     
@@ -3386,55 +4032,73 @@ ipcMain.on('language-changed', (event, language) => {
   // such as updating system tray menu language, etc.
 });
 
+function sendUpdateStatus(status, message, targetWebContents) {
+  const payload = { status, message };
+  const contents = targetWebContents
+    || (mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null);
+  if (contents && !contents.isDestroyed()) {
+    contents.send('update-status', payload);
+  }
+}
+
 // Auto-updater event handlers
+let updateStatusTarget = null;
+
 if (autoUpdater) {
   autoUpdater.on('checking-for-update', () => {
     console.log('Checking for update...');
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-status', 'Checking for updates...');
-    }
+    sendUpdateStatus('checking', 'Checking for updates...', updateStatusTarget);
   });
 
   autoUpdater.on('update-available', (info) => {
     console.log('Update available:', info);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-available', info);
-    }
+    const version = info && info.version ? ` v${info.version}` : '';
+    sendUpdateStatus('available', `Update available${version}. Click "Update Now" to download.`, updateStatusTarget);
   });
 
   autoUpdater.on('update-not-available', (info) => {
     console.log('Update not available:', info);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-not-available', info);
-    }
+    sendUpdateStatus('not-available', UPDATE_UP_TO_DATE_MSG, updateStatusTarget);
   });
 
   autoUpdater.on('error', (err) => {
     console.log('Error in auto-updater:', err);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-error', err.message);
-    }
+    const result = resolveUpdateCheckFailure(err);
+    sendUpdateStatus(result.status, result.message, updateStatusTarget);
+    updateStatusTarget = null;
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
     console.log('Download progress:', progressObj);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-progress', progressObj);
+    const contents = updateStatusTarget
+      || (mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null);
+    if (contents && !contents.isDestroyed()) {
+      contents.send('update-progress', progressObj);
     }
   });
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('Update downloaded:', info);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-downloaded', info);
-    }
+    downloadedUpdateFile = (info && (info.downloadedFile || info.path)) || downloadedUpdateFile;
+    const version = info && info.version ? ` v${info.version}` : '';
+    sendUpdateStatus('downloaded', `Update${version} downloaded. Click Restart & Install.`, updateStatusTarget);
   });
 }
 
 // IPC handlers for update controls
-ipcMain.on('check-for-updates', () => {
+ipcMain.on('check-for-updates', (event) => {
+  updateStatusTarget = event.sender;
   if (autoUpdater) {
-    autoUpdater.checkForUpdates();
+    sendUpdateStatus('checking', 'Checking for updates...', event.sender);
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.log('checkForUpdates failed:', err);
+      const result = resolveUpdateCheckFailure(err);
+      sendUpdateStatus(result.status, result.message, event.sender);
+      updateStatusTarget = null;
+    });
+  } else {
+    sendUpdateStatus('error', 'Automatic updates are not configured for this install.', event.sender);
+    updateStatusTarget = null;
   }
 });
 
@@ -3445,18 +4109,68 @@ ipcMain.on('download-update', () => {
 });
 
 ipcMain.on('quit-and-install', () => {
-  if (autoUpdater) {
-    autoUpdater.quitAndInstall();
+  if (!runDownloadedInstallerAndQuit() && autoUpdater) {
+    autoUpdater.quitAndInstall(false, true);
   }
 });
 
 ipcMain.on('set-update-settings', (event, settings) => {
-  store.set('autoUpdateEnabled', settings.enabled);
-  store.set('updateFrequency', settings.frequency);
+  if (!settings || typeof settings !== 'object') return;
+  if (typeof settings.enabled === 'boolean') {
+    store.set('autoUpdateEnabled', settings.enabled);
+  }
+  if (typeof settings.frequency === 'string' && settings.frequency) {
+    store.set('updateFrequency', settings.frequency);
+  }
+});
+
+ipcMain.on('get-update-settings', (event) => {
+  const lastCheckRaw = store.get('lastUpdateCheck');
+  event.reply('update-settings', {
+    enabled: store.get('autoUpdateEnabled') !== false,
+    frequency: store.get('updateFrequency') || 'weekly',
+    lastCheck: lastCheckRaw ? new Date(lastCheckRaw).getTime() : 0
+  });
+});
+
+ipcMain.on('get-app-version', (event) => {
+  try {
+    event.reply('app-version', app.getVersion());
+  } catch (_) {
+    event.reply('app-version', 'unknown');
+  }
 });
 
 ipcMain.on('update-last-check', () => {
   store.set('lastUpdateCheck', new Date().toISOString());
+});
+
+ipcMain.on('install-update', () => {
+  if (!runDownloadedInstallerAndQuit() && autoUpdater) {
+    autoUpdater.quitAndInstall(false, true);
+  }
+});
+
+ipcMain.on('download-installer', (event) => {
+  updateStatusTarget = event.sender;
+  sendUpdateStatus('checking', 'Downloading latest Tilbi...', event.sender);
+
+  downloadLatestInstaller((progressObj) => {
+    const contents = updateStatusTarget
+      || (mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null);
+    if (contents && !contents.isDestroyed()) {
+      contents.send('update-progress', progressObj);
+    }
+  })
+    .then((installerPath) => {
+      downloadedUpdateFile = installerPath;
+      sendUpdateStatus('downloaded', 'Update ready. Click Restart & Install.', updateStatusTarget);
+    })
+    .catch((err) => {
+      console.error('download-installer failed:', err);
+      sendUpdateStatus('error', 'Download failed. Check your internet and try again.', updateStatusTarget);
+      updateStatusTarget = null;
+    });
 });
 
 // App size handlers

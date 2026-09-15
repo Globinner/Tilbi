@@ -214,12 +214,9 @@
       width: 100%;
     }
 
-    #loginner-control-buttons #loginner-start-btn.start-stop-btn {
-      width: 100%;
-    }
-
-    #loginner-control-buttons .start-stop-toggle {
-      width: 100%;
+    #loginner-control-buttons #loginner-start-btn.loginner-session-btn {
+      width: auto;
+      max-width: 100%;
     }
 
     #loginner-timer-card.timer-card-with-image #loginner-timer {
@@ -1511,6 +1508,24 @@
     }
     /* Ensure search bar is completely gone in Loginner */
     .loginner-active #searchBar { display: none !important; height: 0 !important; padding: 0 !important; border: 0 !important; }
+
+    /* When Loginner tab disabled in settings: hide tab, panel, clock, ACTIVE badge */
+    body.loginner-tab-hidden .tab[data-tab="loginner"],
+    body.loginner-tab-hidden #loginner-tab,
+    body.loginner-tab-hidden #headerClock,
+    body.loginner-tab-hidden #header-status-badge {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
+    /* When Planner tab disabled in settings: hide tab and panel */
+    body.planner-tab-hidden .tab[data-tab="planner"],
+    body.planner-tab-hidden #planner-tab {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
     /* Ensure search bar is completely gone in Screener */
     .screener-active #searchBar { display: none !important; height: 0 !important; padding: 0 !important; border: 0 !important; }
     /* Ensure any exposed page background matches Loginner dark purple */
@@ -1616,6 +1631,7 @@
     .list-container {
       overflow-y: auto;
       height: calc(100vh - 165px);
+      -webkit-app-region: no-drag;
     }
 
     #planner-tab.list-container {
@@ -2964,7 +2980,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     .clip-item {
       padding: 10px 15px;
       border-bottom: 1px solid transparent;
-      cursor: pointer;
+      cursor: grab;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -2972,6 +2988,11 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       overflow: hidden;
       text-overflow: ellipsis;
       transition: all 0.3s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .clip-item:active {
+      cursor: grabbing;
     }
     
     .clip-item:hover {
@@ -2988,6 +3009,13 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      -webkit-app-region: no-drag;
+    }
+
+    .clip-text img,
+    .clip-text video {
+      -webkit-user-drag: none;
+      user-drag: none;
     }
     
     .actions {
@@ -3425,6 +3453,18 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       color: rgba(226, 232, 240, 0.95) !important;
     }
 
+    .preferences-dialog #update-status,
+    .preferences-dialog #update-status span,
+    .preferences-dialog #update-status-text {
+      color: inherit !important;
+    }
+
+    #update-status.checking { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    #update-status.available { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    #update-status.not-available { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    #update-status.downloaded { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    #update-status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
     /* Preferences buttons: always blue theme style, independent of app theme */
     .preferences-dialog button {
       background: #4a86e8 !important;
@@ -3822,50 +3862,76 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       transform: translate(-50%, -50%) rotate(45deg);
     }
 
-    #loginner-start-btn.start-stop-btn {
-      background: transparent !important;
-      border: 0 !important;
-      padding: 0 !important;
-      min-width: 120px;
+    #loginner-start-btn.loginner-session-btn {
+      position: relative;
+      min-width: 0;
+      width: auto;
+      height: 38px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1.5px solid var(--loginner-icon-color, #4a86e8);
+      background: linear-gradient(180deg, rgba(74, 134, 232, 0.22) 0%, rgba(74, 134, 232, 0.08) 100%);
+      color: var(--loginner-icon-color, #4a86e8);
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       cursor: pointer;
-      box-shadow: none !important; /* remove theme button shadows (rectangular) */
-      filter: none !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 14px rgba(74, 134, 232, 0.18);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+      overflow: hidden;
     }
-    /* Ensure no outer rectangular shadow on the on/off control in any state */
-    #loginner-start-btn.start-stop-btn:hover,
-    #loginner-start-btn.start-stop-btn:focus,
-    #loginner-start-btn.start-stop-btn:active {
-      box-shadow: none !important;
-      filter: none !important;
-      outline: none !important;
+    #loginner-start-btn.loginner-session-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%);
+      transform: translateX(-120%);
+      transition: transform 0.5s ease;
+      pointer-events: none;
     }
-    .start-stop-toggle { width: 120px; height: 40px; position: relative; }
-    .start-stop-toggle .toggle-track { width: 100%; height: 100%; border-radius: 999px; position: relative; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-sizing: border-box; }
-    .start-stop-toggle .toggle-label { font-size: 14px; font-weight: 700; user-select: none; }
-    .start-stop-toggle .toggle-thumb { position: absolute; width: 34px; height: 34px; border-radius: 50%; top: 3px; left: 2px; display: flex; align-items: center; justify-content: center; background: #ffffff; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.10); transition: left 0.25s ease, right 0.25s ease, transform 0.2s ease; }
-    .start-stop-toggle .toggle-arrow { font-size: 20px; color: #9ca3af; line-height: 1; }
-
-    /* Variant A: toggle-pill (metallic pill with ON/OFF text) */
-    .toggle-pill .toggle-track { background: linear-gradient(180deg, #eceff3 0%, #d9dde2 100%); box-shadow: inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 6px rgba(0,0,0,0.08), 0 10px 20px rgba(0,0,0,0.08); border: 1px solid #cfd6de; }
-    .toggle-pill .toggle-label.on { color: #16a34a; }
-    .toggle-pill .toggle-label.off { color: #9ca3af; }
-    .toggle-pill.is-on .toggle-thumb { left: calc(100% - 38px); }
-    .toggle-pill.is-on .toggle-arrow { transform: rotate(180deg); color: #9ca3af; }
-    .toggle-pill.is-on .toggle-label.on { color: #16a34a; }
-    .toggle-pill.is-on .toggle-label.off { color: #6b7280; }
-
-    /* Variant B: toggle-slider (OFF = yellow, ON = green) */
-    .toggle-slider .toggle-track { background: #f59e0b; border: 1px solid #d97706; box-shadow: inset 0 1px 2px rgba(255,255,255,0.55), inset 0 -1px 2px rgba(0,0,0,0.18), inset 5px 5px 10px rgba(0,0,0,0.12), inset -5px -5px 10px rgba(255,255,255,0.32); }
-    .toggle-slider .toggle-label { text-transform: lowercase; font-weight: 600; color: #ffffff; }
-    .toggle-slider .toggle-thumb { background: white; left: calc(100% - 36px); }
-    .toggle-slider .toggle-arrow { color: #a5adb5; }
-    .toggle-slider.is-on .toggle-track { background: #16a34a; border-color: #15803d; box-shadow: inset 0 1px 2px rgba(255,255,255,0.55), inset 0 -1px 2px rgba(0,0,0,0.18), inset 5px 5px 10px rgba(0,0,0,0.12), inset -5px -5px 10px rgba(255,255,255,0.32); }
-    .toggle-slider.is-on .toggle-label { color: #ffffff; }
-    .toggle-slider.is-on .toggle-thumb { left: 2px; }
-    .toggle-slider.is-on .toggle-arrow { transform: rotate(180deg); color: #9ca3af; }
+    #loginner-start-btn.loginner-session-btn:hover::before {
+      transform: translateX(120%);
+    }
+    #loginner-start-btn.loginner-session-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(74, 134, 232, 0.28);
+    }
+    #loginner-start-btn.loginner-session-btn:active {
+      transform: translateY(0);
+    }
+    #loginner-start-btn.loginner-session-btn.is-tracking {
+      border-color: #dc2626;
+      background: linear-gradient(180deg, #f87171 0%, #dc2626 55%, #b91c1c 100%);
+      color: #fff;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28), 0 8px 22px rgba(220, 38, 38, 0.35);
+    }
+    #loginner-start-btn.loginner-session-btn .session-btn-icon {
+      font-size: 20px;
+    }
+    #loginner-start-btn.loginner-session-btn .session-btn-text {
+      white-space: nowrap;
+    }
+    #loginner-start-btn.loginner-session-btn .session-btn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      opacity: 0;
+      flex-shrink: 0;
+    }
+    #loginner-start-btn.loginner-session-btn.is-tracking .session-btn-dot {
+      opacity: 1;
+      animation: loginnerPulse 1.35s ease-in-out infinite;
+    }
+    @keyframes loginnerPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.35); opacity: 0.65; }
+    }
 
     /* Timer spacing: separate project name from timer display */
     #current-project-display {
@@ -4229,14 +4295,10 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             <div id="loginner-current-session-label" style="color: #666; font-size: 12px; cursor: help;" title="Shows the current active work session. Time is tracked automatically when you start working.">Current Session</div>
             <!-- Control Buttons (now move together with timer content) -->
             <div id="loginner-control-buttons" style="display: flex; align-items: center; justify-content: center; gap: 12px; pointer-events: auto;">
-              <button id="loginner-start-btn" class="start-stop-btn" style="pointer-events: auto; -webkit-app-region: no-drag;" title="Start tracking time for your current project. Click to begin a new work session.">
-                <div class="start-stop-toggle toggle-slider" data-variant="slider">
-                  <div class="toggle-track">
-                    <span class="toggle-label off">off</span>
-                    <span class="toggle-label on">on</span>
-                    <div class="toggle-thumb"><span class="material-icons toggle-arrow">chevron_left</span></div>
-                  </div>
-                </div>
+              <button id="loginner-start-btn" type="button" class="loginner-session-btn" style="pointer-events: auto; -webkit-app-region: no-drag;" title="Start tracking time for your current project">
+                <span class="material-icons session-btn-icon" id="loginner-session-icon">play_arrow</span>
+                <span class="session-btn-text" id="loginner-session-label">Start</span>
+                <span class="session-btn-dot" aria-hidden="true"></span>
                 <span id="start-btn-text" class="visually-hidden">START</span>
               </button>
               <div id="loginner-status-badge" style="background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; display: none;">ACTIVE</div>
@@ -4714,7 +4776,20 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             </label>
           </h3>
           <p style="font-size: 13px; color: #666; margin-top: 8px;">
-            Toggle to show or hide the Loginner time tracking tab from the main interface
+            Hides the Loginner tab, clock icon, and timer badge. Uncheck to remove all Loginner UI.
+          </p>
+        </div>
+
+        <div class="preferences-section">
+          <h3 style="display: flex; align-items: center; justify-content: space-between;">
+            <span>📅 Show Planner Tab</span>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="planner-visibility-toggle" style="width: 18px; height: 18px; cursor: pointer;">
+              <span style="font-size: 12px; font-weight: normal; color: #666;">Enable planner</span>
+            </label>
+          </h3>
+          <p style="font-size: 13px; color: #666; margin-top: 8px;">
+            Hides the Planner tab and calendar. Uncheck to remove all Planner UI.
           </p>
         </div>
         
@@ -4902,14 +4977,20 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             </select>
           </div>
           <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-            <button id="check-updates-btn" style="padding: 8px 16px; background: #4a86e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+            <button id="check-updates-btn" type="button" onclick="window.tilbiCheckForUpdates && window.tilbiCheckForUpdates(event)" style="padding: 8px 16px; background: #4a86e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
               Check for Updates
             </button>
             <button id="update-now-btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: none;">
               Update Now
             </button>
+            <button id="download-installer-btn" type="button" style="padding: 8px 16px; background: #5b21b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+              Download Update
+            </button>
           </div>
-          <div id="update-status" style="padding: 8px; border-radius: 4px; font-size: 14px; display: none;">
+          <p style="font-size: 12px; color: rgba(226, 232, 240, 0.8); margin: 0 0 8px 0;">
+            Check for Updates downloads and installs inside Tilbi. If that fails, use Download Update, then Restart &amp; Install.
+          </p>
+          <div id="update-status" style="padding: 8px; border-radius: 4px; font-size: 14px; display: none; margin-top: 10px; min-height: 20px;">
             <span id="update-status-text"></span>
           </div>
           <div id="update-progress" style="display: none; margin-top: 10px;">
@@ -6223,13 +6304,20 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     // Handle tab switching
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
+        const tabName = tab.getAttribute('data-tab');
+        if (tabName === 'loginner' && !isLoginnerTabEnabled()) {
+          return;
+        }
+        if (tabName === 'planner' && !isPlannerTabEnabled()) {
+          return;
+        }
+
         // Remove active class from all tabs
         tabs.forEach(t => t.classList.remove('active'));
         
         // Add active class to clicked tab
         tab.classList.add('active');
         
-        const tabName = tab.getAttribute('data-tab');
         hidePlannerPopover();
         currentTab = tabName;
         isSavedView = false;
@@ -6248,6 +6336,11 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           if (screenerFooter) screenerFooter.style.display = 'none';
           updateHistoryView();
         } else if (tabName === 'planner') {
+          if (!isPlannerTabEnabled()) {
+            const historyTabBtn = document.querySelector('.tab[data-tab="history"]');
+            if (historyTabBtn) historyTabBtn.click();
+            return;
+          }
           if (historyTab) historyTab.style.display = 'none';
           if (pinnedTab) pinnedTab.style.display = 'none';
           if (screenerTab) screenerTab.style.display = 'none';
@@ -6263,6 +6356,11 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           renderPlannerCalendar();
           updateHistoryView();
         } else if (tabName === 'loginner') {
+          if (!isLoginnerTabEnabled()) {
+            const historyTabBtn = document.querySelector('.tab[data-tab="history"]');
+            if (historyTabBtn) historyTabBtn.click();
+            return;
+          }
           historyTab.style.display = 'none';
           pinnedTab.style.display = 'none';
           screenerTab.style.display = 'none';
@@ -6439,8 +6537,9 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       ipcRenderer.send('take-screenshot');
     });
     
-      // Clock button -> start or log (no pause)
+      // Clock button -> start/stop timer; open Loginner tab only if enabled in settings
       headerClock.addEventListener('click', () => {
+        if (!isLoginnerTabEnabled()) return;
         console.log('🕐 Clock clicked - start/log');
         if (!isTracking) {
           startTimeTracking();
@@ -6452,6 +6551,10 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           headerClock.style.color = 'white';
           headerClock.title = 'Timer Stopped';
           document.body.classList.remove('clock-running');
+        }
+
+        if (!isLoginnerTabEnabled()) {
+          return;
         }
         
         // Navigate to LOGINNER section
@@ -6616,6 +6719,19 @@ searchInput.disabled = true;
       document.body.classList.add('screener-active');
     }
 
+    ipcRenderer.on('webpage-capture-failed', () => {
+      goToScreener();
+    });
+
+    document.addEventListener('click', (e) => {
+      const dismissBtn = e.target.closest && e.target.closest('.dismiss-loading-btn');
+      if (!dismissBtn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const id = dismissBtn.getAttribute('data-loading-id');
+      ipcRenderer.send('dismiss-screener-loading', id ? { id } : {});
+    });
+
     // Handle switching to screener tab after screenshot/video
     ipcRenderer.on('switch-to-screener', () => {
       goToScreener();
@@ -6641,90 +6757,143 @@ searchInput.disabled = true;
       showPreferences();
     });
     
-    // Render clipboard items
-    function renderClipboardItems(searchTerm = '') {
-      // Clear containers
-      historyTab.innerHTML = '';
-      pinnedTab.innerHTML = '';
-      screenerTab.innerHTML = '';
-      
-      // Filter and render history items
-      let filteredHistory = clipboardData.history;
-      
-      // Only filter text items, include all images regardless of search term
-      if (searchTerm) {
-        filteredHistory = clipboardData.history.filter(item => {
-          // Always include images in results
-          if (item.startsWith('data:image/')) {
-            return true;
-          }
-          // For text items, filter by search term
-          return item.toLowerCase().includes(searchTerm);
-        });
-      }
-      
-      if (filteredHistory.length > 0) {
-        filteredHistory.forEach(item => {
-          historyTab.appendChild(createClipItem(item, clipboardData.pinned.includes(item)));
-        });
-      } else {
-        historyTab.innerHTML = '<div class="no-items">No clipboard history items found</div>';
-      }
-      
-      // Filter and render pinned items
-      let filteredPinned = clipboardData.pinned;
-      
-      if (searchTerm) {
-        filteredPinned = clipboardData.pinned.filter(item => {
-          if (item.startsWith('data:image/')) {
-            return true;
-          }
-          return item.toLowerCase().includes(searchTerm);
-        });
-      }
-      
-      if (filteredPinned.length > 0) {
-        filteredPinned.forEach(item => {
-          pinnedTab.appendChild(createClipItem(item, true));
-        });
-      } else {
-        pinnedTab.innerHTML = '<div class="no-items">No pinned items found</div>';
-      }
+    let lastHistorySig = '';
+    let lastPinnedSig = '';
+    let lastScreenerSig = '';
+    let screenerRenderLimit = 40;
+    const SCREENER_PAGE_SIZE = 40;
 
-      // Filter and render screener items
-      let filteredScreener = clipboardData.screener;
-      
-      if (searchTerm) {
-        filteredScreener = clipboardData.screener.filter(item => {
-          if (item.startsWith('data:image/')) {
-            return true;
-          }
-          return item.toLowerCase().includes(searchTerm);
-        });
+    function listItemSignature(item) {
+      if (item && typeof item === 'object') {
+        return String(item.path || item.id || item.type || '') + ':' + String(item.timestamp || '');
       }
-      
-      if (filteredScreener.length > 0) {
-        filteredScreener.forEach(item => {
-          screenerTab.appendChild(createClipItem(item, false, true));
-        });
+      return String(item || '').slice(0, 80);
+    }
 
-        // Append the clear footer only after items (so it shows at the very end)
-        let footer = document.createElement('div');
-        footer.id = 'screener-footer';
-        footer.style.cssText = 'padding:8px;background:transparent;border-top:1px solid rgba(0,0,0,0.06);margin-top:8px;';
-        footer.innerHTML = '<div style="display:flex;justify-content:center;"><button id="screener-clear-btn" style="background:#dc3545;color:#fff;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:600;">CLEAR ALL SCREENER</button></div>';
-        screenerTab.appendChild(footer);
-        const scBtn = footer.querySelector('#screener-clear-btn');
-        if (scBtn) {
-          scBtn.addEventListener('click', () => {
-            const ok = confirm('Clear ALL Screener items?');
-            if (ok) ipcRenderer.send('clear-all-screener');
-          });
-        }
-      } else {
-        screenerTab.innerHTML = '<div class="no-items">No screener items found</div>';
+    function listSignature(items) {
+      if (!items || !items.length) return '0';
+      return items.length + ':' + listItemSignature(items[0]);
+    }
+
+    function fillList(container, items, builder, emptyText) {
+      container.innerHTML = '';
+      if (!items.length) {
+        container.innerHTML = '<div class="no-items">' + emptyText + '</div>';
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      items.forEach((item) => fragment.appendChild(builder(item)));
+      container.appendChild(fragment);
+    }
+
+    function appendScreenerFooter(container) {
+      const footer = document.createElement('div');
+      footer.id = 'screener-footer';
+      footer.style.cssText = 'padding:8px;background:transparent;border-top:1px solid rgba(0,0,0,0.06);margin-top:8px;';
+      footer.innerHTML = '<div style="display:flex;justify-content:center;"><button id="screener-clear-btn" style="background:#dc3545;color:#fff;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:10px;font-weight:600;">CLEAR ALL SCREENER</button></div>';
+      container.appendChild(footer);
+      const scBtn = footer.querySelector('#screener-clear-btn');
+      if (scBtn) {
+        scBtn.addEventListener('click', () => {
+          const ok = confirm('Clear ALL Screener items?');
+          if (ok) ipcRenderer.send('clear-all-screener');
+        });
       }
     }
+
+    function renderScreenerItems(filteredScreener, forceFull) {
+      const sig = listSignature(filteredScreener);
+      const firstPath = filteredScreener[0] && (filteredScreener[0].path || filteredScreener[0].id);
+      const existingFirst = screenerTab.querySelector('.clip-item');
+      const existingPath = existingFirst && (existingFirst.getAttribute('data-filepath') || existingFirst.getAttribute('data-content'));
+      const previousCount = lastScreenerSig ? Number(lastScreenerSig.split(':')[0]) : 0;
+      const canPrepend = !forceFull && existingFirst && firstPath && previousCount + 1 === filteredScreener.length && String(firstPath) !== String(existingPath);
+
+      if (canPrepend) {
+        screenerTab.insertBefore(createClipItem(filteredScreener[0], false, true), existingFirst);
+        lastScreenerSig = sig;
+        return;
+      }
+
+      if (!forceFull && sig === lastScreenerSig) return;
+      lastScreenerSig = sig;
+      const visible = filteredScreener.slice(0, screenerRenderLimit);
+      fillList(screenerTab, visible, (item) => createClipItem(item, false, true), 'No screener items found');
+      if (filteredScreener.length > visible.length) {
+        const more = document.createElement('button');
+        more.textContent = 'Show more (' + (filteredScreener.length - visible.length) + ' left)';
+        more.style.cssText = 'display:block;margin:8px auto;padding:6px 12px;border:none;border-radius:6px;background:#4a86e8;color:#fff;cursor:pointer;font-size:12px;';
+        more.onclick = () => {
+          screenerRenderLimit += SCREENER_PAGE_SIZE;
+          lastScreenerSig = '';
+          const searchEl = document.getElementById('search-input');
+          renderClipboardItems(searchEl ? searchEl.value.trim().toLowerCase() : '');
+        };
+        screenerTab.appendChild(more);
+      }
+      if (visible.length) appendScreenerFooter(screenerTab);
+    }
+
+    function renderClipboardItems(searchTerm = '') {
+      let filteredHistory = clipboardData.history || [];
+      if (searchTerm) {
+        filteredHistory = filteredHistory.filter(item => {
+          if (typeof item === 'string' && item.startsWith('data:image/')) return true;
+          return String(item).toLowerCase().includes(searchTerm);
+        });
+      }
+      const historySig = listSignature(filteredHistory);
+      if (searchTerm || historySig !== lastHistorySig) {
+        lastHistorySig = historySig;
+        fillList(historyTab, filteredHistory, (item) => createClipItem(item, clipboardData.pinned.includes(item)), 'No clipboard history items found');
+      }
+
+      let filteredPinned = clipboardData.pinned || [];
+      if (searchTerm) {
+        filteredPinned = filteredPinned.filter(item => {
+          if (typeof item === 'string' && item.startsWith('data:image/')) return true;
+          return String(item).toLowerCase().includes(searchTerm);
+        });
+      }
+      const pinnedSig = listSignature(filteredPinned);
+      if (searchTerm || pinnedSig !== lastPinnedSig) {
+        lastPinnedSig = pinnedSig;
+        fillList(pinnedTab, filteredPinned, (item) => createClipItem(item, true), 'No pinned items found');
+      }
+
+      let filteredScreener = clipboardData.screener || [];
+      const screenerNow = Date.now();
+      filteredScreener = filteredScreener.filter((item) => {
+        if (item && typeof item === 'object' && item.type === 'loading') {
+          return item.timestamp && (screenerNow - item.timestamp) < 90000;
+        }
+        return true;
+      });
+      if (searchTerm) {
+        filteredScreener = filteredScreener.filter(item => {
+          if (typeof item === 'string') return item.toLowerCase().includes(searchTerm);
+          if (item && item.path) return String(item.path).toLowerCase().includes(searchTerm);
+          return true;
+        });
+      }
+      renderScreenerItems(filteredScreener, !!searchTerm);
+    }
+    function showTextCopiedFeedback(item) {
+      item.classList.add('copied');
+      setTimeout(() => item.classList.remove('copied'), 500);
+      const copyIcon = item.querySelector('.copy-btn i');
+      if (copyIcon) {
+        const originalText = copyIcon.textContent;
+        const originalColor = copyIcon.style.color;
+        copyIcon.textContent = 'check';
+        copyIcon.style.color = '#28a745';
+        setTimeout(() => {
+          copyIcon.textContent = originalText;
+          copyIcon.style.color = originalColor || '';
+        }, 1200);
+      }
+    }
+
     // Modify the createClipItem function to handle image clicks differently
     function createClipItem(content, isPinned, isScreener = false) {
       const item = document.createElement('div');
@@ -6737,26 +6906,38 @@ searchInput.disabled = true;
       const isScreenshot = isScreener && typeof content === 'object' && content.path && !content.type;
       const isVideo = isScreener && typeof content === 'object' && content.path && content.type === 'video';
       const isLoading = isScreener && typeof content === 'object' && content.type === 'loading';
+      const isCaptureError = isScreener && typeof content === 'object' && content.type === 'capture-error';
       
-      if (isScreenshot || isVideo || isLoading) {
+      if (isScreenshot || isVideo) {
         item.setAttribute('data-content', content.path);
         item.setAttribute('data-filepath', content.path);
+      } else if (isLoading || isCaptureError) {
+        item.setAttribute('data-content', content.id || content.message || 'screener-status');
       } else {
         item.setAttribute('data-content', content);
       }
       // Item content - different for images, videos and text
       let contentHTML;
-      if (isLoading) {
+      if (isCaptureError) {
+        const errMsg = String(content.message || 'Sorry — this page could not be captured.')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        contentHTML = '<div class="clip-text screener-capture-error" style="display:flex;align-items:flex-start;gap:10px;color:#fbbf24;padding:4px 0">' +
+          '<span class="material-icons" style="font-size:20px;flex-shrink:0">info</span>' +
+          '<div style="font-size:12px;line-height:1.45">' + errMsg + '</div></div>';
+      } else if (isLoading) {
         const msg = content.message || 'Capturing...';
-        contentHTML = `<div class="clip-text" style="display:flex;align-items:center;gap:10px; color:#94a3b8">
-          <div class="spinner" style="width:18px;height:18px;border:3px solid #94a3b8;border-top-color:#4a86e8;border-radius:50%;animation:spin 0.9s linear infinite"></div>
-          <div>${msg}</div>
-        </div>`;
+        const loadingId = content.id ? String(content.id).replace(/'/g, '') : '';
+        contentHTML = '<div class="clip-text screener-loading-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;color:#94a3b8">' +
+          '<div style="display:flex;align-items:center;gap:10px;min-width:0">' +
+          '<div class="spinner" style="width:18px;height:18px;border:3px solid #94a3b8;border-top-color:#4a86e8;border-radius:50%;animation:spin 0.9s linear infinite;flex-shrink:0"></div>' +
+          '<div style="overflow:hidden;text-overflow:ellipsis">' + msg + '</div></div>' +
+          '<button type="button" class="dismiss-loading-btn" data-loading-id="' + loadingId + '" style="flex-shrink:0;background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.35);color:#cbd5e1;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">Cancel</button></div>';
       } else if (isScreenshot) {
         const isCircle = content.shape === 'circle';
         const circleStyle = isCircle ? 'border-radius: 50%; clip-path: circle(50% at 50% 50%); background: radial-gradient(circle at center, rgba(0,0,0,0) 75%, rgba(0,0,0,0) 76%);' : '';
-        contentHTML = `<div class="clip-text image-container" style="cursor: pointer; ${circleStyle}">
-          <img src="${content.dataUrl}" alt="Screenshot" onload="this.classList.add('loaded')" style="${isCircle ? 'border-radius:50%; clip-path: circle(50% at 50% 50%);' : ''}">
+        const imageSrc = content.dataUrl || (content.path ? ('file:///' + String(content.path).replace(/\\/g, '/')) : '');
+        contentHTML = `<div class="clip-text image-container" style="cursor: grab; ${circleStyle}">
+          <img draggable="false" loading="lazy" src="${imageSrc}" alt="Screenshot" onload="this.classList.add('loaded')" style="${isCircle ? 'border-radius:50%; clip-path: circle(50% at 50% 50%);' : ''}">
         </div>`;
       } else if (isVideo) {
         const duration = content.duration ? Math.floor(content.duration / 1000) : 0;
@@ -6779,11 +6960,11 @@ searchInput.disabled = true;
             thumbPathNorm = `file:///${thumbPathNorm}`;
           }
           const thumbSrc = encodeURI(thumbPathNorm);
-          thumbnailHTML = `<img src="${thumbSrc}" alt="Video thumbnail" style="width: 100%; height: 100%; object-fit: cover;">`;
+          thumbnailHTML = `<img draggable="false" src="${thumbSrc}" alt="Video thumbnail" style="width: 100%; height: 100%; object-fit: cover;">`;
         } else if (content.thumbnailFileUrl) {
-          thumbnailHTML = `<img src="${content.thumbnailFileUrl}" alt="Video thumbnail" style="width: 100%; height: 100%; object-fit: cover;">`;
+          thumbnailHTML = `<img draggable="false" src="${content.thumbnailFileUrl}" alt="Video thumbnail" style="width: 100%; height: 100%; object-fit: cover;">`;
         } else if (content.thumbnailDataUrl && content.thumbnailDataUrl.startsWith('data:image/png')) {
-          thumbnailHTML = `<img src="${content.thumbnailDataUrl}" alt="Video thumbnail" style="width: 100%; height: 100%; object-fit: cover;">`;
+          thumbnailHTML = `<img draggable="false" src="${content.thumbnailDataUrl}" alt="Video thumbnail" style="width: 100%; height: 100%; object-fit: cover;">`;
         } else {
           // Fallback icon
           thumbnailHTML = `<i class="material-icons" style="font-size: 48px; color: #4a86e8;">videocam</i>`;
@@ -6800,7 +6981,7 @@ searchInput.disabled = true;
         </div>`;
       } else if (typeof content === 'string' && content.startsWith('data:image/')) {
         contentHTML = `<div class="clip-text image-container">
-          <img src="${content}" alt="Screenshot" onload="this.classList.add('loaded')">
+          <img draggable="false" src="${content}" alt="Screenshot" onload="this.classList.add('loaded')">
         </div>`;
       } else {
         const displayText = content.length > 50 ? content.substring(0, 50) + '...' : content;
@@ -6848,10 +7029,10 @@ searchInput.disabled = true;
       if (isScreenshot) {
         const imageContainer = item.querySelector('.image-container');
         if (imageContainer) {
-          imageContainer.setAttribute('title', 'Click to open image');
+          imageContainer.setAttribute('title', 'Click to open · drag to move');
           imageContainer.addEventListener('click', (e) => {
+            if (suppressItemClick) return;
             e.stopPropagation();
-            // Open image directly
             ipcRenderer.send('open-screenshot', content.path);
           });
 
@@ -6918,45 +7099,19 @@ searchInput.disabled = true;
       if (!isScreenshot) {
         const clipText = item.querySelector('.clip-text');
         
-        // Add title hint for better UX
-        clipText.setAttribute('title', 'Click to copy');
+        clipText.setAttribute('title', 'Click to copy · drag to move');
         
         clipText.addEventListener('click', async (e) => {
+          if (suppressItemClick) return;
           e.stopPropagation();
-          item.classList.add('copied');
-          setTimeout(() => {
-            item.classList.remove('copied');
-          }, 500);
-          
           try {
             if (typeof content === 'string' && content.startsWith('data:image/')) {
-              // Copy image to clipboard (no window hide)
               await ipcRenderer.invoke('copy-image', content);
             } else {
-              // Copy text to clipboard (no window hide)
+              showTextCopiedFeedback(item);
               ipcRenderer.send('copy-to-clipboard', content);
             }
           } catch (_) {}
-
-          // Visual feedback: turn copy icon into a checkmark briefly, or show a small 'Copied' badge
-          const copyIcon = item.querySelector('.copy-btn i');
-          if (copyIcon) {
-            const originalText = copyIcon.textContent;
-            const originalColor = copyIcon.style.color;
-            copyIcon.textContent = 'check';
-            copyIcon.style.color = '#28a745';
-            setTimeout(() => {
-              copyIcon.textContent = originalText;
-              copyIcon.style.color = originalColor || '';
-            }, 1200);
-          } else {
-            const badge = document.createElement('div');
-            badge.textContent = 'Copied';
-            badge.style.cssText = 'position:absolute; right:8px; top:8px; background:#16a34a; color:#fff; font-size:10px; padding:2px 6px; border-radius:10px;';
-            item.style.position = item.style.position || 'relative';
-            item.appendChild(badge);
-            setTimeout(() => { try { badge.remove(); } catch(_){} }, 1000);
-          }
         });
       }
       
@@ -6988,14 +7143,8 @@ searchInput.disabled = true;
                 setTimeout(() => { icon.textContent = original; icon.style.color = ''; }, ok ? 1200 : 1500);
               }
             } else {
+              showTextCopiedFeedback(item);
               ipcRenderer.send('copy-to-clipboard', content);
-              const icon = copyBtn.querySelector('i');
-              if (icon) {
-                const original = icon.textContent;
-                icon.textContent = 'check';
-                icon.style.color = '#28a745';
-                setTimeout(() => { icon.textContent = original; icon.style.color = ''; }, 1200);
-              }
             }
           } catch (_) {
             const icon = copyBtn.querySelector('i');
@@ -7097,46 +7246,65 @@ searchInput.disabled = true;
     // Drag and drop functionality
     let dragSrcEl = null;
     let dragSrcIndex = null;
-    
+    let suppressItemClick = false;
+    let dragDropInitialized = false;
+
+    function getListContainerType(containerId) {
+      if (containerId === 'screenerTab') return 'screener';
+      if (containerId === 'history-tab') return 'history';
+      if (containerId === 'pinned-tab') return 'pinned';
+      return String(containerId || '').replace('-tab', '');
+    }
+
     function handleDragStart(e) {
       dragSrcEl = this;
+      suppressItemClick = false;
       const container = this.closest('.list-container');
+      if (!container) {
+        e.preventDefault();
+        return;
+      }
       const items = Array.from(container.querySelectorAll('.clip-item'));
       dragSrcIndex = items.indexOf(this);
-      
+
       this.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      
-      // Get the content from data attribute
-      const content = this.getAttribute('data-content');
-      
-      // For images, set both text/plain and image data
-      if (content.startsWith('data:image/')) {
-        e.dataTransfer.setData('text/plain', content);
-        // Create an image element to drag
-        const img = new Image();
-        img.src = content;
-        e.dataTransfer.setDragImage(img, 0, 0);
-      } else {
-        e.dataTransfer.setData('text/plain', content);
+
+      const content = this.getAttribute('data-content') || '';
+      const filePath = this.getAttribute('data-filepath');
+
+      if (filePath) {
+        e.preventDefault();
+        try {
+          ipcRenderer.sendSync('start-native-drag', { path: filePath });
+        } catch (_) {
+          ipcRenderer.send('start-native-drag', { path: filePath });
+        }
+        return;
       }
-      
-      ipcRenderer.send('ensure-window-visible');
+
+      e.dataTransfer.effectAllowed = 'copyMove';
+      e.dataTransfer.setData('text/plain', content || '');
     }
-    
+
     function handleDragEnd(e) {
       this.classList.remove('dragging');
+      suppressItemClick = true;
+      setTimeout(() => { suppressItemClick = false; }, 200);
       document.querySelectorAll('.clip-item').forEach(item => {
         item.classList.remove('drag-over');
       });
-      setTimeout(() => {
-        ipcRenderer.send('ensure-window-visible');
-      }, 100);
+      dragSrcEl = null;
+      dragSrcIndex = null;
+      ipcRenderer.send('drag-ended');
     }
+
     function setupDragAndDrop() {
+      if (dragDropInitialized) return;
+      dragDropInitialized = true;
       const containers = [historyTab, pinnedTab, screenerTab];
-      
+
       containers.forEach(container => {
+        if (!container) return;
         container.addEventListener('dragover', (e) => {
           e.preventDefault();
           const target = e.target.closest('.clip-item');
@@ -7173,7 +7341,7 @@ searchInput.disabled = true;
           const dropTarget = e.target.closest('.clip-item');
           if (!dropTarget || !dragSrcEl) return;
           
-          const containerType = container.id.replace('-tab', '');
+          const containerType = getListContainerType(container.id);
           const items = Array.from(container.querySelectorAll('.clip-item'));
           let dropIndex = items.indexOf(dropTarget);
           
@@ -7231,8 +7399,9 @@ searchInput.disabled = true;
           updateHistoryView();
         }
       }
-      setupDragAndDrop();
     });
+
+    setupDragAndDrop();
     
     // Receive clipboard updates
     ipcRenderer.on('clipboard-updated', (event, data) => {
@@ -7367,6 +7536,7 @@ searchInput.disabled = true;
       
       // Load and highlight current theme
       loadThemePreference();
+      loadUpdateSettings();
       
       // Disable window dragging when modal is open
       document.querySelector('.header').style.webkitAppRegion = 'no-drag';
@@ -7377,6 +7547,143 @@ searchInput.disabled = true;
       // Restore window dragging after preferences is closed
       document.querySelector('.header').style.webkitAppRegion = 'drag';
     }
+
+    // Auto-update functionality (early init so preferences always works)
+    let updateSettings = {
+      enabled: true,
+      frequency: 'weekly',
+      lastCheck: 0
+    };
+
+    function loadUpdateSettings() {
+      ipcRenderer.send('get-update-settings');
+      ipcRenderer.send('get-app-version');
+    }
+
+    ipcRenderer.on('app-version', (event, version) => {
+      const versionText = document.getElementById('version-text');
+      if (versionText && version) {
+        versionText.textContent = `Tilbi v${version}`;
+        versionText.dataset.liveVersion = '1';
+      }
+    });
+
+    ipcRenderer.on('update-settings', (event, settings) => {
+      updateSettings = settings;
+      const enabledCheckbox = document.getElementById('auto-update-enabled');
+      const frequencySelect = document.getElementById('update-frequency');
+      if (enabledCheckbox) enabledCheckbox.checked = settings.enabled;
+      if (frequencySelect) frequencySelect.value = settings.frequency;
+    });
+
+    function showUpdateStatus(status, message) {
+      const statusDiv = document.getElementById('update-status');
+      const statusText = document.getElementById('update-status-text');
+      const updateNowBtn = document.getElementById('update-now-btn');
+      const progressDiv = document.getElementById('update-progress');
+      if (!statusDiv || !statusText) return;
+
+      statusDiv.style.display = 'block';
+      statusText.textContent = message || '';
+      statusDiv.className = status;
+
+      if (progressDiv && status !== 'available' && status !== 'downloaded') {
+        progressDiv.style.display = 'none';
+      }
+      if (updateNowBtn && status !== 'available' && status !== 'downloaded') {
+        updateNowBtn.style.display = 'none';
+        updateNowBtn.textContent = 'Update Now';
+        updateNowBtn.onclick = null;
+      }
+
+      switch (status) {
+        case 'checking':
+          break;
+        case 'available':
+          if (updateNowBtn) updateNowBtn.style.display = 'inline-block';
+          break;
+        case 'not-available':
+          break;
+        case 'downloaded':
+          if (updateNowBtn) {
+            updateNowBtn.style.display = 'inline-block';
+            updateNowBtn.textContent = 'Restart & Install';
+            updateNowBtn.onclick = () => ipcRenderer.send('install-update');
+          }
+          break;
+        case 'error':
+          break;
+      }
+    }
+
+    ipcRenderer.on('update-status', (event, payload) => {
+      const status = typeof payload === 'string'
+        ? 'checking'
+        : (payload && payload.status) || 'checking';
+      const message = typeof payload === 'string'
+        ? payload
+        : (payload && payload.message) || '';
+      showUpdateStatus(status, message);
+    });
+
+    ipcRenderer.on('update-progress', (event, progress) => {
+      const progressDiv = document.getElementById('update-progress');
+      const progressBar = document.getElementById('update-progress-bar');
+      const progressText = document.getElementById('update-progress-text');
+      if (progressDiv && progressBar && progressText) {
+        progressDiv.style.display = 'block';
+        progressBar.style.width = `${progress.percent}%`;
+        const transferredMB = (progress.transferred / 1024 / 1024).toFixed(1);
+        const totalMB = (progress.total / 1024 / 1024).toFixed(1);
+        progressText.textContent = `Downloading: ${transferredMB}MB / ${totalMB}MB (${Math.round(progress.percent)}%)`;
+      }
+    });
+
+    function tilbiCheckForUpdates(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const checkUpdatesBtn = document.getElementById('check-updates-btn');
+      showUpdateStatus('checking', 'Checking for updates...');
+      if (checkUpdatesBtn) {
+        checkUpdatesBtn.disabled = true;
+        setTimeout(() => { checkUpdatesBtn.disabled = false; }, 3000);
+      }
+      ipcRenderer.send('check-for-updates');
+      ipcRenderer.send('update-last-check');
+    }
+    window.tilbiCheckForUpdates = tilbiCheckForUpdates;
+
+    (function initUpdateControls() {
+      const enabledCheckbox = document.getElementById('auto-update-enabled');
+      const frequencySelect = document.getElementById('update-frequency');
+      const checkUpdatesBtn = document.getElementById('check-updates-btn');
+      const updateNowBtn = document.getElementById('update-now-btn');
+      if (enabledCheckbox) {
+        enabledCheckbox.addEventListener('change', (e) => {
+          ipcRenderer.send('set-update-settings', { enabled: e.target.checked });
+        });
+      }
+      if (frequencySelect) {
+        frequencySelect.addEventListener('change', (e) => {
+          ipcRenderer.send('set-update-settings', { frequency: e.target.value });
+        });
+      }
+      if (checkUpdatesBtn) {
+        checkUpdatesBtn.addEventListener('click', (e) => tilbiCheckForUpdates(e));
+      }
+      if (updateNowBtn) {
+        updateNowBtn.addEventListener('click', () => ipcRenderer.send('download-update'));
+      }
+      const downloadInstallerBtn = document.getElementById('download-installer-btn');
+      if (downloadInstallerBtn) {
+        downloadInstallerBtn.addEventListener('click', () => {
+          showUpdateStatus('checking', 'Downloading latest Tilbi...');
+          ipcRenderer.send('download-installer');
+        });
+      }
+    })();
 
     headerTitle.onclick = (e) => {
       e.preventDefault();
@@ -7884,29 +8191,41 @@ searchInput.disabled = true;
 
     // ==================== LOGINNER VISIBILITY TOGGLE ====================
     
+    function isLoginnerTabEnabled() {
+      return localStorage.getItem('loginner-visible') !== 'false';
+    }
+
     function updateLoginnerVisibility() {
-      const isVisible = localStorage.getItem('loginner-visible') !== 'false'; // default true
-      const loginnerTab = document.querySelector('.tab[data-tab="loginner"]');
+      const isVisible = isLoginnerTabEnabled();
+      const loginnerTabBtn = document.querySelector('.tab[data-tab="loginner"]');
+      const loginnerTabPanel = document.getElementById('loginner-tab');
       const headerClock = document.getElementById('headerClock');
-      // const headerLogClock = document.getElementById('headerLogClock'); // removed
-      // const headerLogClock = document.getElementById('headerLogClock'); // removed
-      
-      // Show/hide Loginner tab
-      if (loginnerTab) {
-        loginnerTab.style.display = isVisible ? 'block' : 'none';
+
+      document.body.classList.toggle('loginner-tab-hidden', !isVisible);
+
+      if (loginnerTabBtn) {
+        loginnerTabBtn.style.display = isVisible ? '' : 'none';
       }
-      
-      // Show/hide ONLY the two clock icons
+      if (loginnerTabPanel) {
+        if (!isVisible) {
+          loginnerTabPanel.style.display = 'none';
+          document.body.classList.remove('loginner-active');
+        }
+      }
+
+      // Hide clock + ACTIVE badge when Loginner is disabled in settings
+      const headerBadge = document.getElementById('header-status-badge');
       if (headerClock) {
         headerClock.style.display = isVisible ? 'inline-block' : 'none';
       }
-      // headerLogClock removed
-      
-      // If hiding Loginner and it's currently active, switch to History tab
-      if (!isVisible && loginnerTab && loginnerTab.classList.contains('active')) {
-        const historyTab = document.querySelector('.tab[data-tab="history"]');
-        if (historyTab) {
-          historyTab.click();
+      if (headerBadge && !isVisible) {
+        headerBadge.style.display = 'none';
+      }
+
+      if (!isVisible && loginnerTabBtn && loginnerTabBtn.classList.contains('active')) {
+        const historyTabBtn = document.querySelector('.tab[data-tab="history"]');
+        if (historyTabBtn) {
+          historyTabBtn.click();
         }
       }
     }
@@ -7936,10 +8255,62 @@ searchInput.disabled = true;
       // Apply initial visibility
       updateLoginnerVisibility();
     }
+
+    // ==================== PLANNER VISIBILITY TOGGLE ====================
+
+    function isPlannerTabEnabled() {
+      return localStorage.getItem('planner-visible') !== 'false';
+    }
+
+    function updatePlannerVisibility() {
+      const isVisible = isPlannerTabEnabled();
+      const plannerTabBtn = document.querySelector('.tab[data-tab="planner"]');
+      const plannerTabPanel = document.getElementById('planner-tab');
+
+      document.body.classList.toggle('planner-tab-hidden', !isVisible);
+
+      if (plannerTabBtn) {
+        plannerTabBtn.style.display = isVisible ? '' : 'none';
+      }
+      if (plannerTabPanel && !isVisible) {
+        plannerTabPanel.style.display = 'none';
+        document.body.classList.remove('planner-active');
+      }
+
+      if (!isVisible && plannerTabBtn && plannerTabBtn.classList.contains('active')) {
+        const historyTabBtn = document.querySelector('.tab[data-tab="history"]');
+        if (historyTabBtn) {
+          historyTabBtn.click();
+        }
+      }
+    }
+
+    function initializePlannerToggle() {
+      const toggle = document.getElementById('planner-visibility-toggle');
+      if (toggle) {
+        const isVisible = localStorage.getItem('planner-visible') !== 'false';
+        toggle.checked = isVisible;
+
+        toggle.addEventListener('change', (e) => {
+          const newValue = e.target.checked;
+          localStorage.setItem('planner-visible', newValue);
+          updatePlannerVisibility();
+
+          const label = toggle.parentElement;
+          label.style.transform = 'scale(0.95)';
+          setTimeout(() => {
+            label.style.transform = 'scale(1)';
+          }, 100);
+        });
+      }
+
+      updatePlannerVisibility();
+    }
     
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', () => {
       initializeLoginnerToggle();
+      initializePlannerToggle();
     initializeLegalToggles();
     // Ensure buttons exist after any dynamic translations
     setTimeout(initializeLegalToggles, 300);
@@ -10043,7 +10414,7 @@ searchInput.disabled = true;
       if (versionTitle) versionTitle.textContent = t.version;
       
       const versionText = document.getElementById('version-text');
-      if (versionText) versionText.textContent = t.versionText;
+      if (versionText && !versionText.dataset.liveVersion) versionText.textContent = t.versionText;
       
       const languageTitle = document.getElementById('language-title');
       if (languageTitle) languageTitle.textContent = t.language;
@@ -10601,18 +10972,13 @@ searchInput.disabled = true;
     
     function setStartButtonState(isOn) {
       const btn = document.getElementById('loginner-start-btn');
+      const icon = document.getElementById('loginner-session-icon');
+      const label = document.getElementById('loginner-session-label');
       if (!btn) return;
-      // Toggle class for both variants
-      const toggle = btn.querySelector('.start-stop-toggle');
-      if (toggle) {
-        if (isOn) {
-          toggle.classList.add('is-on');
-          btn.title = 'Click to stop and log your session';
-        } else {
-          toggle.classList.remove('is-on');
-          btn.title = 'Start tracking time for your current project.';
-        }
-      }
+      btn.classList.toggle('is-tracking', !!isOn);
+      if (icon) icon.textContent = isOn ? 'stop' : 'play_arrow';
+      if (label) label.textContent = isOn ? 'Stop' : 'Start';
+      btn.title = isOn ? 'Stop and save this session' : 'Start tracking time for your current project';
     }
 
     function stopTimeTracking() {
@@ -11761,9 +12127,27 @@ searchInput.disabled = true;
       openModal('loginner-revenue-modal');
     }
     
+    function mountLoginnerSettingsToBody() {
+      ['loginner-settings-modal-overlay', 'loginner-settings-overlay'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && el.parentElement !== document.body) {
+          document.body.appendChild(el);
+        }
+      });
+    }
+
     function showSettingsModal() {
+      mountLoginnerSettingsToBody();
+
+      const loginnerContent = document.querySelector('#loginner-tab .loginner-content');
+      if (loginnerContent) {
+        loginnerContent.style.visibility = 'visible';
+        loginnerContent.style.opacity = '1';
+      }
+
       const overlay = document.getElementById('loginner-settings-overlay');
       const modalOverlay = document.getElementById('loginner-settings-modal-overlay');
+      if (!overlay) return;
       
       // Toggle settings overlay
       if (overlay.style.display === 'block') {
@@ -11787,7 +12171,7 @@ searchInput.disabled = true;
             <div style="margin-bottom: 12px; border: 1px solid rgba(59,130,246,0.4); border-radius: 10px; padding: 10px; width: 100%; box-sizing: border-box;">
               <div style="color: white; font-weight: bold; margin-bottom: 8px; font-size: 14px;">Select Project</div>
               <div style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; width: 100%;">
-                <select id="settings-project-select" style="background: white; color: #000; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px; font-size: 14px; height: 45px; width: 240px;">
+                <select id="settings-project-select" style="background: white; color: #000; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px; font-size: 14px; height: 45px; width: 240px; -webkit-app-region: no-drag; pointer-events: auto;">
                   ${window.loginnerProjects && window.loginnerProjects.length ? window.loginnerProjects.map(project => `<option value="${project}" ${project === currentProject ? 'selected' : ''}>${project}</option>`).join('') : ''}
                 </select>
                  <button id="select-project-btn" style="background: #6a4df0 !important; color: #ffffff !important; border: 2px solid #6a4df0 !important; border-radius: 8px; padding: 10px 16px; cursor: pointer; font-size: 14px; height: 45px; font-weight: 600; white-space: nowrap; width: 80px; display: flex; align-items: center; justify-content: center;">Select</button>
@@ -11807,7 +12191,7 @@ searchInput.disabled = true;
                 
                 <!-- Project Name Row -->
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                  <input type="text" id="new-project-name" placeholder="Name your Project" class="settings-input" style="background: white; color: #000; border: 2px solid #3b82f6; border-radius: 8px; padding: 12px 14px; flex: 1; box-sizing: border-box; font-size: 15px; height: 44px; min-width: 200px; pointer-events: auto !important;" autocomplete="off" spellcheck="false">
+                  <input type="text" id="new-project-name" placeholder="Name your Project" class="settings-input" style="background: white; color: #000; border: 2px solid #3b82f6; border-radius: 8px; padding: 12px 14px; flex: 1; box-sizing: border-box; font-size: 15px; height: 44px; min-width: 200px; pointer-events: auto !important; -webkit-app-region: no-drag;" autocomplete="off" spellcheck="false">
                   <button id="titler-select-image-btn" style="background: #0ea5e9; color: white; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; font-size: 14px; font-weight: 600; height: 44px; display: flex; align-items: center; justify-content: center; white-space: nowrap; flex-shrink: 0;">Select Image</button>
                   <label for="titler-enable-checkbox" style="display: flex; align-items: center; gap: 6px; color: white; font-size: 14px; cursor: pointer; white-space: nowrap; flex-shrink: 0;">
                     <input type="checkbox" id="titler-enable-checkbox" style="transform: scale(1.15);">
@@ -12345,6 +12729,11 @@ searchInput.disabled = true;
       // This ensures the input is typeable right away, not after 10-20 seconds
       const enableInputImmediately = () => {
         const nameInput = document.getElementById('new-project-name');
+        const projectSelect = document.getElementById('settings-project-select');
+        if (projectSelect) {
+          projectSelect.disabled = false;
+          projectSelect.style.pointerEvents = 'auto';
+        }
         if (nameInput) {
           const addBtn = document.getElementById('add-project-btn');
           const isEditing = addBtn && addBtn.dataset.editing === 'true' && addBtn.dataset.project;
@@ -14661,150 +15050,6 @@ ${new Date().toLocaleString()}`;
         });
       });
     }
-
-    // Auto-update functionality
-    let updateSettings = {
-      enabled: true,
-      frequency: 'weekly',
-      lastCheck: 0
-    };
-
-    // Load update settings when preferences dialog opens
-    document.getElementById('closePreferences').addEventListener('click', () => {
-      loadUpdateSettings();
-    });
-
-    function loadUpdateSettings() {
-      ipcRenderer.send('get-update-settings');
-    }
-
-    // Handle update settings response
-    ipcRenderer.on('update-settings', (event, settings) => {
-      updateSettings = settings;
-      
-      // Update UI elements
-      const enabledCheckbox = document.getElementById('auto-update-enabled');
-      const frequencySelect = document.getElementById('update-frequency');
-      
-      if (enabledCheckbox) {
-        enabledCheckbox.checked = settings.enabled;
-      }
-      if (frequencySelect) {
-        frequencySelect.value = settings.frequency;
-      }
-      
-      // Update last check display
-      if (settings.lastCheck > 0) {
-        const lastCheckDate = new Date(settings.lastCheck);
-        const lastCheckText = `Last checked: ${lastCheckDate.toLocaleDateString()} ${lastCheckDate.toLocaleTimeString()}`;
-        // You could add this to a status display if needed
-      }
-    });
-
-    // Handle update status messages
-    ipcRenderer.on('update-status', (event, status) => {
-      const statusDiv = document.getElementById('update-status');
-      const statusText = document.getElementById('update-status-text');
-      const updateNowBtn = document.getElementById('update-now-btn');
-      
-      if (statusDiv && statusText) {
-        statusDiv.style.display = 'block';
-        statusText.textContent = status.message;
-        
-        // Style based on status
-        statusDiv.className = '';
-        switch (status.status) {
-          case 'checking':
-            statusDiv.style.background = '#fff3cd';
-            statusDiv.style.color = '#856404';
-            statusDiv.style.border = '1px solid #ffeaa7';
-            break;
-          case 'available':
-            statusDiv.style.background = '#d4edda';
-            statusDiv.style.color = '#155724';
-            statusDiv.style.border = '1px solid #c3e6cb';
-            if (updateNowBtn) {
-              updateNowBtn.style.display = 'inline-block';
-            }
-            break;
-          case 'not-available':
-            statusDiv.style.background = '#d1ecf1';
-            statusDiv.style.color = '#0c5460';
-            statusDiv.style.border = '1px solid #bee5eb';
-            break;
-          case 'downloaded':
-            statusDiv.style.background = '#d4edda';
-            statusDiv.style.color = '#155724';
-            statusDiv.style.border = '1px solid #c3e6cb';
-            if (updateNowBtn) {
-              updateNowBtn.style.display = 'inline-block';
-              updateNowBtn.textContent = 'Restart & Install';
-              updateNowBtn.onclick = () => {
-                ipcRenderer.send('install-update');
-              };
-            }
-            break;
-          case 'error':
-            statusDiv.style.background = '#f8d7da';
-            statusDiv.style.color = '#721c24';
-            statusDiv.style.border = '1px solid #f5c6cb';
-            break;
-        }
-      }
-    });
-
-    // Handle update progress
-    ipcRenderer.on('update-progress', (event, progress) => {
-      const progressDiv = document.getElementById('update-progress');
-      const progressBar = document.getElementById('update-progress-bar');
-      const progressText = document.getElementById('update-progress-text');
-      
-      if (progressDiv && progressBar && progressText) {
-        progressDiv.style.display = 'block';
-        progressBar.style.width = `${progress.percent}%`;
-        
-        const transferredMB = (progress.transferred / 1024 / 1024).toFixed(1);
-        const totalMB = (progress.total / 1024 / 1024).toFixed(1);
-        progressText.textContent = `Downloading: ${transferredMB}MB / ${totalMB}MB (${Math.round(progress.percent)}%)`;
-      }
-    });
-
-    // Event listeners for update controls
-    document.addEventListener('DOMContentLoaded', () => {
-      const enabledCheckbox = document.getElementById('auto-update-enabled');
-      const frequencySelect = document.getElementById('update-frequency');
-      const checkUpdatesBtn = document.getElementById('check-updates-btn');
-      const updateNowBtn = document.getElementById('update-now-btn');
-      
-      if (enabledCheckbox) {
-        enabledCheckbox.addEventListener('change', (e) => {
-          ipcRenderer.send('set-update-settings', {
-            enabled: e.target.checked
-          });
-        });
-      }
-      
-      if (frequencySelect) {
-        frequencySelect.addEventListener('change', (e) => {
-          ipcRenderer.send('set-update-settings', {
-            frequency: e.target.value
-          });
-        });
-      }
-      
-      if (checkUpdatesBtn) {
-        checkUpdatesBtn.addEventListener('click', () => {
-          ipcRenderer.send('check-for-updates');
-          ipcRenderer.send('update-last-check');
-        });
-      }
-      
-      if (updateNowBtn) {
-        updateNowBtn.addEventListener('click', () => {
-          ipcRenderer.send('download-update');
-        });
-      }
-    });
 
     // ==================== APP LOADING STATE MANAGEMENT ====================
     

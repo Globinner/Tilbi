@@ -141,8 +141,13 @@
       transition: background 0.2s;
     }
 
-    .tool-btn:hover {
+    .tool-btn:hover:not(:disabled) {
       background: #6d28d9;
+    }
+
+    .tool-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     .tool-btn.active {
@@ -286,6 +291,63 @@
       background: #4c1d95;
     }
 
+    .actions-share-wrap {
+      position: relative;
+    }
+
+    .action-btn.share {
+      background: #15803d;
+    }
+
+    .action-btn.share:hover {
+      background: #166534;
+    }
+
+    .action-btn.copy {
+      background: #0f766e;
+    }
+
+    .action-btn.copy:hover {
+      background: #115e59;
+    }
+
+    .share-menu {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      right: 0;
+      background: #0f172a;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+      min-width: 220px;
+      overflow: hidden;
+      z-index: 1200;
+    }
+
+    .share-menu.open {
+      display: block;
+    }
+
+    .share-menu button {
+      width: 100%;
+      background: transparent;
+      color: #e2e8f0;
+      border: none;
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .share-menu button:hover {
+      background: rgba(148, 163, 184, 0.12);
+    }
+
     .text-input-container {
       position: fixed;
       display: none;
@@ -352,6 +414,11 @@
       <i class="material-icons">remove</i>
       Line
     </button>
+
+    <button class="tool-btn" id="penBtn" title="Free Draw">
+      <i class="material-icons">brush</i>
+      Draw
+    </button>
     
     <div class="color-picker-container">
       <span class="color-picker-label">Color:</span>
@@ -370,6 +437,17 @@
       <span id="textSizeValue">24</span>
     </div>
 
+    <div class="thickness-control">
+      <span class="thickness-label">Zoom:</span>
+      <button class="tool-btn" id="zoomOutBtn" title="Zoom out">−</button>
+      <span id="zoomLabel" style="font-size:12px;min-width:44px;text-align:center;">100%</span>
+      <button class="tool-btn" id="zoomInBtn" title="Zoom in">+</button>
+    </div>
+
+    <button class="tool-btn" id="undoBtn" title="Back (undo last step)" disabled>
+      <i class="material-icons">undo</i>
+    </button>
+
     <button class="tool-btn" id="clearBtn" title="Clear All">
       <i class="material-icons">clear_all</i>
     </button>
@@ -385,6 +463,30 @@
     <button class="action-btn cancel" id="cancelBtn">
       <i class="material-icons">close</i>
       Cancel
+    </button>
+    <div class="actions-share-wrap">
+      <div id="shareMenu" class="share-menu">
+        <button type="button" data-share-mode="whatsapp">
+          <i class="material-icons" style="font-size:18px;">chat</i>
+          Share via WhatsApp
+        </button>
+        <button type="button" data-share-mode="email">
+          <i class="material-icons" style="font-size:18px;">email</i>
+          Share via Email
+        </button>
+        <button type="button" data-share-mode="copy">
+          <i class="material-icons" style="font-size:18px;">content_copy</i>
+          Copy image
+        </button>
+      </div>
+      <button class="action-btn share" id="shareBtn" type="button">
+        <i class="material-icons">share</i>
+        Share
+      </button>
+    </div>
+    <button class="action-btn copy" id="copyBtn" type="button">
+      <i class="material-icons">content_copy</i>
+      Copy
     </button>
     <button class="action-btn" id="saveBtn">
       <i class="material-icons">save</i>
@@ -406,6 +508,42 @@
 
     let canvas = document.getElementById('canvas');
     let ctx = canvas.getContext('2d');
+    let viewZoom = 1;
+    const MIN_ZOOM = 0.25;
+    const MAX_ZOOM = 4;
+
+    function applyViewZoom() {
+      canvas.style.width = Math.round(canvas.width * viewZoom) + 'px';
+      canvas.style.height = Math.round(canvas.height * viewZoom) + 'px';
+      const label = document.getElementById('zoomLabel');
+      if (label) label.textContent = Math.round(viewZoom * 100) + '%';
+    }
+
+    function setViewZoom(next) {
+      viewZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+      applyViewZoom();
+    }
+
+    document.getElementById('zoomInBtn').addEventListener('click', () => setViewZoom(viewZoom * 1.25));
+    document.getElementById('zoomOutBtn').addEventListener('click', () => setViewZoom(viewZoom / 1.25));
+    document.querySelector('.canvas-container').addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      setViewZoom(viewZoom * factor);
+    }, { passive: false });
+    document.addEventListener('keydown', (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setViewZoom(viewZoom * 1.25);
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        setViewZoom(viewZoom / 1.25);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setViewZoom(1);
+      }
+    });
     let originalImage = new Image();
     let currentTool = 'rect';
     let drawing = false;
@@ -413,12 +551,18 @@
     let currentColor = '#ff0000';
     let thickness = 3;
     let shapes = [];
+    let undoStack = [];
     let currentText = null;
     let textStartX, textStartY;
     let selectedShapeIndex = -1;
     let isMoving = false;
+    let currentImagePath = null;
+    const shareBtn = document.getElementById('shareBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const shareMenu = document.getElementById('shareMenu');
     let moveStartX, moveStartY;
     let textSize = 24;
+    let activePenPoints = null;
 
     // Tools
     document.getElementById('rectBtn').addEventListener('click', () => setTool('rect'));
@@ -427,6 +571,7 @@
     document.getElementById('textBtn').addEventListener('click', () => setTool('text'));
     
     document.getElementById('lineBtn').addEventListener('click', () => setTool('line'));
+    document.getElementById('penBtn').addEventListener('click', () => setTool('pen'));
     
     document.getElementById('colorPicker').addEventListener('change', (e) => {
       currentColor = e.target.value;
@@ -444,10 +589,35 @@
 
     document.getElementById('clearBtn').addEventListener('click', () => {
       if (confirm('Clear all annotations?')) {
+        saveUndoState();
         shapes = [];
+        selectedShapeIndex = -1;
         redraw();
       }
     });
+
+    function saveUndoState() {
+      undoStack.push(JSON.parse(JSON.stringify(shapes)));
+      if (undoStack.length > 50) undoStack.shift();
+      updateUndoButton();
+    }
+
+    function updateUndoButton() {
+      const undoBtn = document.getElementById('undoBtn');
+      if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+    }
+
+    function undoLastStep() {
+      if (undoStack.length === 0) return;
+      shapes = undoStack.pop();
+      selectedShapeIndex = -1;
+      isMoving = false;
+      drawing = false;
+      redraw();
+      updateUndoButton();
+    }
+
+    document.getElementById('undoBtn').addEventListener('click', undoLastStep);
 
     document.getElementById('cancelBtn').addEventListener('click', () => {
       // Close editor and show main window
@@ -455,6 +625,68 @@
     });
 
     document.getElementById('saveBtn').addEventListener('click', saveImage);
+
+    function getEditorImageDataUrl() {
+      return canvas.toDataURL('image/png');
+    }
+
+    function indicateShareFeedback(message, button) {
+      const target = button || shareBtn;
+      if (!target) return;
+      if (!target.dataset.originalContent) {
+        target.dataset.originalContent = target.innerHTML;
+      }
+      target.innerHTML = `<i class="material-icons">check</i> ${message || 'Copied'}`;
+      setTimeout(() => {
+        if (target.dataset.originalContent) {
+          target.innerHTML = target.dataset.originalContent;
+        }
+      }, 1800);
+    }
+
+    function closeShareMenu() {
+      if (shareMenu) shareMenu.classList.remove('open');
+    }
+
+    async function shareEditorImage(mode, feedbackButton) {
+      closeShareMenu();
+      try {
+        const result = await ipcRenderer.invoke('share-editor-image', {
+          mode,
+          imageData: getEditorImageDataUrl(),
+          sourcePath: currentImagePath
+        });
+        if (result && result.success) {
+          if (mode === 'copy') indicateShareFeedback('Copied', feedbackButton || copyBtn);
+          else if (mode === 'whatsapp') indicateShareFeedback('Paste in WhatsApp');
+          else if (mode === 'email') indicateShareFeedback('Paste in Email');
+          else indicateShareFeedback('Shared');
+        } else {
+          indicateShareFeedback('Failed', feedbackButton || shareBtn);
+        }
+      } catch (error) {
+        console.error('Share failed:', error);
+        indicateShareFeedback('Failed', feedbackButton || shareBtn);
+      }
+    }
+
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => shareEditorImage('copy', copyBtn));
+    }
+
+    if (shareBtn && shareMenu) {
+      shareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shareMenu.classList.toggle('open');
+      });
+      shareMenu.querySelectorAll('[data-share-mode]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          shareEditorImage(btn.getAttribute('data-share-mode'));
+        });
+      });
+      document.addEventListener('click', closeShareMenu);
+    }
     
     // Window controls (minimize removed)
     
@@ -534,8 +766,36 @@
         // Text is at a point, check if clicked near it
         const dist = Math.sqrt(Math.pow(x - shape.x, 2) + Math.pow(y - shape.y, 2));
         return dist <= 50;
+      } else if (shape.type === 'pen' && shape.points && shape.points.length > 1) {
+        for (let i = 1; i < shape.points.length; i++) {
+          const p1 = shape.points[i - 1];
+          const p2 = shape.points[i];
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          if (length === 0) continue;
+          const t = Math.max(0, Math.min(1, ((x - p1.x) * dx + (y - p1.y) * dy) / (length * length)));
+          const projX = p1.x + t * dx;
+          const projY = p1.y + t * dy;
+          const dist = Math.sqrt(Math.pow(x - projX, 2) + Math.pow(y - projY, 2));
+          if (dist <= Math.max(10, (shape.thickness || 3) + 4)) return true;
+        }
       }
       return false;
+    }
+
+    function drawPenPath(ctx, shape) {
+      if (!shape.points || shape.points.length < 2) return;
+      ctx.strokeStyle = shape.color;
+      ctx.lineWidth = shape.thickness;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(shape.points[0].x, shape.points[0].y);
+      for (let i = 1; i < shape.points.length; i++) {
+        ctx.lineTo(shape.points[i].x, shape.points[i].y);
+      }
+      ctx.stroke();
     }
 
     canvas.addEventListener('mousedown', (e) => {
@@ -543,12 +803,12 @@
       startX = coords.x;
       startY = coords.y;
 
-      // Always check if clicking on a shape first (for direct moving)
-      selectedShapeIndex = -1;
+      // Allow selecting/moving shapes with any tool (pen draws only on empty canvas)
       for (let i = shapes.length - 1; i >= 0; i--) {
         if (isPointInShape(coords.x, coords.y, shapes[i])) {
           selectedShapeIndex = i;
           isMoving = true;
+          saveUndoState();
           drawing = false;
           moveStartX = startX;
           moveStartY = startY;
@@ -581,8 +841,7 @@
       // Start drawing with current tool
       drawing = true;
       if (currentTool === 'pen') {
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
+        activePenPoints = [{ x: startX, y: startY }];
       }
     });
 
@@ -614,14 +873,21 @@
         const shape = shapes[selectedShapeIndex];
         const deltaX = currentMouseX - moveStartX;
         const deltaY = currentMouseY - moveStartY;
-        
-        shape.startX += deltaX;
-        shape.startY += deltaY;
-        shape.endX += deltaX;
-        shape.endY += deltaY;
-        if (shape.x !== undefined && shape.y !== undefined) {
-          shape.x += deltaX;
-          shape.y += deltaY;
+
+        if (shape.type === 'pen' && shape.points) {
+          shape.points.forEach((point) => {
+            point.x += deltaX;
+            point.y += deltaY;
+          });
+        } else {
+          shape.startX += deltaX;
+          shape.startY += deltaY;
+          shape.endX += deltaX;
+          shape.endY += deltaY;
+          if (shape.x !== undefined && shape.y !== undefined) {
+            shape.x += deltaX;
+            shape.y += deltaY;
+          }
         }
         
         moveStartX = currentMouseX;
@@ -633,12 +899,11 @@
       // Handle drawing operations
       if (!drawing) return;
       
-      if (currentTool === 'pen') {
-        ctx.lineTo(currentMouseX, currentMouseY);
-        ctx.strokeStyle = currentColor;
-        ctx.lineWidth = thickness;
-        ctx.lineCap = 'round';
-        ctx.stroke();
+      if (currentTool === 'pen' && activePenPoints) {
+        activePenPoints.push({ x: currentMouseX, y: currentMouseY });
+        redraw();
+        drawPenPath(ctx, { points: activePenPoints, color: currentColor, thickness });
+        return;
       } else {
         // Live preview for shapes being drawn
         redrawWithPreview(startX, startY, currentMouseX, currentMouseY);
@@ -783,6 +1048,8 @@
           ctx.stroke();
           ctx.setLineDash([]);
         }
+      } else if (shape.type === 'pen') {
+        drawPenPath(ctx, shape);
       } else if (shape.type === 'text') {
         const fontWeight = shape.bold ? 'bold' : 'normal';
         ctx.font = `${fontWeight} ${shape.size}px Arial`;
@@ -810,11 +1077,27 @@
       if (!drawing) return;
       
       drawing = false;
+
+      if (currentTool === 'pen') {
+        if (activePenPoints && activePenPoints.length > 1) {
+          saveUndoState();
+          shapes.push({
+            type: 'pen',
+            points: activePenPoints.slice(),
+            color: currentColor,
+            thickness
+          });
+          redraw();
+        }
+        activePenPoints = null;
+        return;
+      }
+
       const coords = getCanvasCoordinates(e);
       const endX = coords.x;
       const endY = coords.y;
 
-      if (currentTool !== 'pen' && currentTool !== 'text') {
+      if (currentTool !== 'text') {
         const shape = {
           type: currentTool,
           startX,
@@ -824,6 +1107,7 @@
           color: currentColor,
           thickness
         };
+        saveUndoState();
         shapes.push(shape);
         redraw();
       }
@@ -913,6 +1197,7 @@
           if (e.key === 'Enter') {
             e.preventDefault();
             if (newInputEl.value.trim()) {
+              saveUndoState();
               shapes.push({
                 type: 'text',
                 x: textStartX,
@@ -1006,6 +1291,8 @@
             ctx.stroke();
             ctx.setLineDash([]);
           }
+        } else if (shape.type === 'pen') {
+          drawPenPath(ctx, shape);
         } else if (shape.type === 'text') {
           const fontWeight = shape.bold ? 'bold' : 'normal';
           ctx.font = `${fontWeight} ${shape.size}px Arial`;
@@ -1025,74 +1312,27 @@
     }
 
     function loadImage(imagePath) {
+      currentImagePath = imagePath;
       originalImage.onload = () => {
-        // Get editor screen size (canvas container)
         const canvasContainer = document.querySelector('.canvas-container');
-        const containerWidth = canvasContainer.clientWidth - 40; // Subtract padding
+        const containerWidth = canvasContainer.clientWidth - 40;
         const containerHeight = canvasContainer.clientHeight - 40;
-        
         const imageWidth = originalImage.width;
         const imageHeight = originalImage.height;
-        
-        // Calculate what 60% of screen size would be
-        const sixtyPercentWidth = containerWidth * 0.6;
-        const sixtyPercentHeight = containerHeight * 0.6;
-        
-        // Check if image is smaller than 60% of editor screen
-        const isSmallerThan60Percent = imageWidth < sixtyPercentWidth && imageHeight < sixtyPercentHeight;
-        
-        let finalWidth, finalHeight;
-        
-        if (isSmallerThan60Percent) {
-          // Scale to 70% of screen with higher definition for readability
-          const targetWidth = containerWidth * 0.7;
-          const targetHeight = containerHeight * 0.7;
-          
-          // Calculate scale to fit 70% while maintaining aspect ratio
-          const scaleX = targetWidth / imageWidth;
-          const scaleY = targetHeight / imageHeight;
-          const scale = Math.min(scaleX, scaleY);
-          
-          // Calculate final dimensions for 70% of screen
-          finalWidth = Math.round(imageWidth * scale);
-          finalHeight = Math.round(imageHeight * scale);
-          
-          // Enable high-quality image smoothing for better readability
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          
-          // Set canvas size to scaled dimensions (70% of screen)
-          canvas.width = finalWidth;
-          canvas.height = finalHeight;
-          
-          // Draw image at scaled size with high quality
-          ctx.drawImage(originalImage, 0, 0, finalWidth, finalHeight);
-        } else {
-          // Image is large enough - fit to container, allow scrolling if larger
-          canvas.width = imageWidth;
-          canvas.height = imageHeight;
-          
-          // Calculate scale to fit container while maintaining aspect ratio
-          const scaleX = containerWidth / imageWidth;
-          const scaleY = containerHeight / imageHeight;
-          const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
-          
-          // Only scale down if image is larger than container
-          if (fitScale < 1) {
-            canvas.style.width = (imageWidth * fitScale) + 'px';
-            canvas.style.height = (imageHeight * fitScale) + 'px';
-          } else {
-            // Keep original size if smaller than container
-            canvas.style.width = imageWidth + 'px';
-            canvas.style.height = imageHeight + 'px';
-          }
-          
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(originalImage, 0, 0);
-        }
-        
-        // Redraw any existing shapes
+        const targetWidth = containerWidth * 0.9;
+        const targetHeight = containerHeight * 0.9;
+        const scale = Math.min(targetWidth / imageWidth, targetHeight / imageHeight);
+        const finalWidth = Math.max(1, Math.round(imageWidth * scale));
+        const finalHeight = Math.max(1, Math.round(imageHeight * scale));
+
+        canvas.width = finalWidth;
+        canvas.height = finalHeight;
+        viewZoom = 1;
+        applyViewZoom();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(originalImage, 0, 0, finalWidth, finalHeight);
+
         if (shapes.length > 0) {
           redraw();
         }
