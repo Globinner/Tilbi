@@ -7717,6 +7717,8 @@ searchInput.disabled = true;
     document.querySelectorAll('[data-billing-slot]').forEach((slot) => {
       slot.outerHTML = getBillingSectionHtml();
     });
+    window.getBillingSectionHtml = getBillingSectionHtml;
+    window.refreshBillingUI = refreshBillingUI;
 
     function getActiveBillingRoot() {
       const settingsOverlay = document.getElementById('loginner-settings-overlay');
@@ -12622,7 +12624,7 @@ searchInput.disabled = true;
         const currentProject = currentSession && currentSession.project ? currentSession.project : '';
         
         content.innerHTML = `
-            ${getBillingSectionHtml()}
+            ${(typeof getBillingSectionHtml === 'function' ? getBillingSectionHtml() : (typeof window.getBillingSectionHtml === 'function' ? window.getBillingSectionHtml() : ''))}
 
             <!-- Select Project Section -->
             <div style="margin-bottom: 12px; border: 1px solid rgba(59,130,246,0.4); border-radius: 10px; padding: 10px; width: 100%; box-sizing: border-box;">
