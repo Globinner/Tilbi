@@ -3511,6 +3511,32 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       color: rgba(226, 232, 240, 0.95) !important;
     }
 
+    .billing-section {
+      margin-bottom: 12px !important;
+      border: 1px solid rgba(59, 130, 246, 0.4) !important;
+      border-radius: 10px !important;
+      padding: 14px 16px !important;
+      box-sizing: border-box !important;
+      width: 100% !important;
+    }
+    .billing-section h3 {
+      margin: 0 0 10px 0 !important;
+      font-size: 16px !important;
+      color: #ffffff !important;
+    }
+    .billing-section button {
+      background: #4a86e8 !important;
+      color: #ffffff !important;
+      border-radius: 6px !important;
+      border: 1px solid #3b78e7 !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      padding: 8px 12px !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
     .billing-plan-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -3556,15 +3582,18 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       gap: 6px;
       margin-top: 10px;
     }
+    .billing-section button.billing-btn-paypal,
     .preferences-dialog button.billing-btn-paypal {
       background: #ffc439 !important;
       color: #111111 !important;
       border-color: #d4a017 !important;
     }
+    .billing-section button.billing-btn-manage,
     .preferences-dialog button.billing-btn-manage {
       background: #0f766e !important;
       border-color: #0d9488 !important;
     }
+    .billing-section button.billing-btn-cancel,
     .preferences-dialog button.billing-btn-cancel {
       background: #b91c1c !important;
       border-color: #991b1b !important;
@@ -3580,9 +3609,9 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       background: #0f172a;
       color: #ffffff;
     }
-    #billing-message.is-error { color: #fca5a5 !important; }
-    #billing-message.is-ok { color: #86efac !important; }
-    #billing-manage-row {
+    .billing-message.is-error { color: #fca5a5 !important; }
+    .billing-message.is-ok { color: #86efac !important; }
+    .billing-manage-row {
       display: none;
       gap: 8px;
       flex-wrap: wrap;
@@ -4082,6 +4111,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       </h1>
     </div>
     <div class="right-buttons" id="rightButtons">
+      <span class="material-icons" id="headerSettings" title="Settings" style="color: white; cursor: pointer; font-size: 20px; -webkit-app-region: no-drag; margin-right: 8px;">settings</span>
       <div id="header-status-badge" style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 8px; font-weight: bold; display: none; -webkit-app-region: no-drag; margin-right: 4px;">ACTIVE</div>
       <span class="material-icons" id="headerSizeToggle" style="color: white; cursor: pointer; font-size: 20px; -webkit-app-region: no-drag; margin-right: 8px;" title="Toggle App Size" onclick="console.log('Direct onclick triggered'); ipcRenderer.send('toggle-app-size');">aspect_ratio</span>
       <span class="material-icons" id="headerClock" style="color: white; cursor: pointer; font-size: 20px; -webkit-app-region: no-drag; margin-right: 8px;">schedule</span>
@@ -4848,54 +4878,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
         <button class="preferences-close" id="closePreferences">✕</button>
       </div>
       <div class="preferences-content">
-        <div class="preferences-section" id="billing-section">
-          <h3>Plan &amp; Billing</h3>
-          <p id="billing-status-line">$5 / month or $29 / year. Sign in to subscribe or see the plan you own.</p>
-          <p id="billing-message" style="display: none; font-size: 12px; margin-top: 4px;"></p>
-
-          <div id="billing-auth-signed-out" class="billing-auth-row">
-            <input id="billing-email" type="email" placeholder="Email" autocomplete="username">
-            <input id="billing-password" type="password" placeholder="Password (min 8 for new accounts)" autocomplete="current-password">
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" id="billing-login-btn">Log in</button>
-              <button type="button" id="billing-register-btn">Create account</button>
-            </div>
-          </div>
-
-          <div id="billing-auth-signed-in" style="display: none;">
-            <p id="billing-user-email" style="margin-bottom: 8px;"></p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
-              <button type="button" id="billing-refresh-btn">Refresh status</button>
-              <button type="button" id="billing-logout-btn">Log out</button>
-            </div>
-          </div>
-
-          <div class="billing-plan-grid" id="billing-plans">
-            <div class="billing-plan-card" id="billing-card-monthly">
-              <div class="billing-plan-name">Monthly</div>
-              <div class="billing-plan-price">$5<span>/month</span></div>
-              <div class="billing-plan-actions">
-                <button type="button" class="billing-pay-stripe" data-plan="monthly">Pay with card</button>
-                <button type="button" class="billing-btn-paypal billing-pay-paypal" data-plan="monthly">Pay with PayPal</button>
-              </div>
-            </div>
-            <div class="billing-plan-card" id="billing-card-yearly">
-              <div class="billing-plan-name">Yearly</div>
-              <div class="billing-plan-price">$29<span>/year</span></div>
-              <div class="billing-plan-note">Save $31 vs monthly</div>
-              <div class="billing-plan-actions">
-                <button type="button" class="billing-pay-stripe" data-plan="yearly">Pay with card</button>
-                <button type="button" class="billing-btn-paypal billing-pay-paypal" data-plan="yearly">Pay with PayPal</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="billing-manage-row">
-            <button type="button" id="billing-manage-btn" class="billing-btn-manage">Manage billing</button>
-            <button type="button" id="billing-resume-btn" class="billing-btn-manage" style="display: none;">Resume plan</button>
-            <button type="button" id="billing-cancel-btn" class="billing-btn-cancel">Cancel plan</button>
-          </div>
-        </div>
+        <div data-billing-slot></div>
 
         <div class="preferences-section">
           <h3 style="display: flex; align-items: center; justify-content: space-between;">
@@ -7682,18 +7665,85 @@ searchInput.disabled = true;
     let pendingPaypalSubscriptionId = null;
     let billingBusy = false;
 
+    function getBillingSectionHtml() {
+      return (
+        '<div class="billing-section">' +
+          '<h3>Plan &amp; Billing</h3>' +
+          '<p class="billing-status-line">$5 / month or $29 / year. Sign in to subscribe or see the plan you own.</p>' +
+          '<p class="billing-message" style="display: none; font-size: 12px; margin-top: 4px;"></p>' +
+          '<div class="billing-auth-signed-out billing-auth-row">' +
+            '<input class="billing-email" type="email" placeholder="Email" autocomplete="username">' +
+            '<input class="billing-password" type="password" placeholder="Password (min 8 for new accounts)" autocomplete="current-password">' +
+            '<div style="display: flex; gap: 8px; flex-wrap: wrap;">' +
+              '<button type="button" class="billing-login-btn">Log in</button>' +
+              '<button type="button" class="billing-register-btn">Create account</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="billing-auth-signed-in" style="display: none;">' +
+            '<p class="billing-user-email" style="margin-bottom: 8px;"></p>' +
+            '<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">' +
+              '<button type="button" class="billing-refresh-btn">Refresh status</button>' +
+              '<button type="button" class="billing-logout-btn">Log out</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="billing-plan-grid">' +
+            '<div class="billing-plan-card billing-card-monthly">' +
+              '<div class="billing-plan-name">Monthly</div>' +
+              '<div class="billing-plan-price">$5<span>/month</span></div>' +
+              '<div class="billing-plan-actions">' +
+                '<button type="button" class="billing-pay-stripe" data-plan="monthly">Pay with card</button>' +
+                '<button type="button" class="billing-btn-paypal billing-pay-paypal" data-plan="monthly">Pay with PayPal</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="billing-plan-card billing-card-yearly">' +
+              '<div class="billing-plan-name">Yearly</div>' +
+              '<div class="billing-plan-price">$29<span>/year</span></div>' +
+              '<div class="billing-plan-note">Save $31 vs monthly</div>' +
+              '<div class="billing-plan-actions">' +
+                '<button type="button" class="billing-pay-stripe" data-plan="yearly">Pay with card</button>' +
+                '<button type="button" class="billing-btn-paypal billing-pay-paypal" data-plan="yearly">Pay with PayPal</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="billing-manage-row">' +
+            '<button type="button" class="billing-manage-btn billing-btn-manage">Manage billing</button>' +
+            '<button type="button" class="billing-resume-btn billing-btn-manage" style="display: none;">Resume plan</button>' +
+            '<button type="button" class="billing-cancel-btn billing-btn-cancel">Cancel plan</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    document.querySelectorAll('[data-billing-slot]').forEach((slot) => {
+      slot.outerHTML = getBillingSectionHtml();
+    });
+
+    function getActiveBillingRoot() {
+      const settingsOverlay = document.getElementById('loginner-settings-overlay');
+      if (settingsOverlay && settingsOverlay.style.display === 'block') {
+        const root = settingsOverlay.querySelector('.billing-section');
+        if (root) return root;
+      }
+      const pref = document.getElementById('preferencesOverlay');
+      if (pref && pref.style.display === 'block') {
+        const root = pref.querySelector('.billing-section');
+        if (root) return root;
+      }
+      return document.querySelector('.billing-section');
+    }
+
     function setBillingMessage(text, kind) {
-      const el = document.getElementById('billing-message');
+      const el = getActiveBillingRoot() && getActiveBillingRoot().querySelector('.billing-message');
       if (!el) return;
       if (!text) {
         el.style.display = 'none';
         el.textContent = '';
-        el.className = '';
+        el.className = 'billing-message';
         return;
       }
       el.style.display = 'block';
       el.textContent = text;
-      el.className = kind === 'error' ? 'is-error' : 'is-ok';
+      el.className = 'billing-message ' + (kind === 'error' ? 'is-error' : 'is-ok');
     }
 
     function formatPlanLabel(planType) {
@@ -7703,21 +7753,25 @@ searchInput.disabled = true;
     }
 
     function setPayButtonsEnabled(enabled) {
-      document.querySelectorAll('.billing-pay-stripe, .billing-pay-paypal').forEach((btn) => {
+      const root = getActiveBillingRoot();
+      if (!root) return;
+      root.querySelectorAll('.billing-pay-stripe, .billing-pay-paypal').forEach((btn) => {
         btn.disabled = !enabled;
         btn.style.opacity = enabled ? '1' : '0.55';
       });
     }
 
     async function refreshBillingUI() {
-      const statusLine = document.getElementById('billing-status-line');
-      const signedOut = document.getElementById('billing-auth-signed-out');
-      const signedIn = document.getElementById('billing-auth-signed-in');
-      const userEmail = document.getElementById('billing-user-email');
-      const manageRow = document.getElementById('billing-manage-row');
-      const resumeBtn = document.getElementById('billing-resume-btn');
-      const monthlyCard = document.getElementById('billing-card-monthly');
-      const yearlyCard = document.getElementById('billing-card-yearly');
+      const root = getActiveBillingRoot();
+      if (!root) return;
+      const statusLine = root.querySelector('.billing-status-line');
+      const signedOut = root.querySelector('.billing-auth-signed-out');
+      const signedIn = root.querySelector('.billing-auth-signed-in');
+      const userEmail = root.querySelector('.billing-user-email');
+      const manageRow = root.querySelector('.billing-manage-row');
+      const resumeBtn = root.querySelector('.billing-resume-btn');
+      const monthlyCard = root.querySelector('.billing-card-monthly');
+      const yearlyCard = root.querySelector('.billing-card-yearly');
       if (!statusLine) return;
 
       monthlyCard && monthlyCard.classList.remove('is-current');
@@ -7781,8 +7835,9 @@ searchInput.disabled = true;
 
     async function billingLoginOrRegister(mode) {
       if (billingBusy) return;
-      const emailEl = document.getElementById('billing-email');
-      const passwordEl = document.getElementById('billing-password');
+      const root = getActiveBillingRoot();
+      const emailEl = root && root.querySelector('.billing-email');
+      const passwordEl = root && root.querySelector('.billing-password');
       const email = (emailEl && emailEl.value || '').trim();
       const password = (passwordEl && passwordEl.value) || '';
       if (!email || !password) {
@@ -7862,97 +7917,84 @@ searchInput.disabled = true;
       }
     }
 
-    (function initBillingSettings() {
-      const loginBtn = document.getElementById('billing-login-btn');
-      const registerBtn = document.getElementById('billing-register-btn');
-      const logoutBtn = document.getElementById('billing-logout-btn');
-      const refreshBtn = document.getElementById('billing-refresh-btn');
-      const manageBtn = document.getElementById('billing-manage-btn');
-      const cancelBtn = document.getElementById('billing-cancel-btn');
-      const resumeBtn = document.getElementById('billing-resume-btn');
-
-      if (loginBtn) loginBtn.addEventListener('click', () => billingLoginOrRegister('login'));
-      if (registerBtn) registerBtn.addEventListener('click', () => billingLoginOrRegister('register'));
-      const passwordEl = document.getElementById('billing-password');
-      if (passwordEl) {
-        passwordEl.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') billingLoginOrRegister('login');
-        });
+    document.addEventListener('click', async (e) => {
+      if (!e.target.closest('.billing-section')) return;
+      if (e.target.closest('.billing-login-btn')) return billingLoginOrRegister('login');
+      if (e.target.closest('.billing-register-btn')) return billingLoginOrRegister('register');
+      if (e.target.closest('.billing-logout-btn')) {
+        pendingPaypalSubscriptionId = null;
+        await ipcRenderer.invoke('subscription-logout');
+        setBillingMessage('Signed out.', 'ok');
+        return refreshBillingUI();
       }
-      if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-          pendingPaypalSubscriptionId = null;
-          await ipcRenderer.invoke('subscription-logout');
-          setBillingMessage('Signed out.', 'ok');
-          await refreshBillingUI();
-        });
+      if (e.target.closest('.billing-refresh-btn')) {
+        setBillingMessage('Checking plan...');
+        await confirmPendingPaypal();
+        return refreshBillingUI();
       }
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
-          setBillingMessage('Checking plan...');
-          await confirmPendingPaypal();
-          await refreshBillingUI();
-        });
-      }
-      document.querySelectorAll('.billing-pay-stripe').forEach((btn) => {
-        btn.addEventListener('click', () => startCheckout(btn.dataset.plan, 'stripe'));
-      });
-      document.querySelectorAll('.billing-pay-paypal').forEach((btn) => {
-        btn.addEventListener('click', () => startCheckout(btn.dataset.plan, 'paypal'));
-      });
-      if (manageBtn) {
-        manageBtn.addEventListener('click', async () => {
-          try {
-            const result = await ipcRenderer.invoke('subscription-billing-portal');
-            if (!result || !result.success || !result.url) {
-              setBillingMessage((result && result.error) || 'Could not open billing portal.', 'error');
-              return;
-            }
-            ipcRenderer.send('open-external-link', result.url);
-          } catch (err) {
-            setBillingMessage((err && err.message) || 'Could not open billing portal.', 'error');
+      const stripeBtn = e.target.closest('.billing-pay-stripe');
+      if (stripeBtn) return startCheckout(stripeBtn.dataset.plan, 'stripe');
+      const paypalBtn = e.target.closest('.billing-pay-paypal');
+      if (paypalBtn) return startCheckout(paypalBtn.dataset.plan, 'paypal');
+      if (e.target.closest('.billing-manage-btn')) {
+        try {
+          const result = await ipcRenderer.invoke('subscription-billing-portal');
+          if (!result || !result.success || !result.url) {
+            setBillingMessage((result && result.error) || 'Could not open billing portal.', 'error');
+            return;
           }
-        });
-      }
-      if (cancelBtn) {
-        cancelBtn.addEventListener('click', async () => {
-          if (!confirm('Cancel your Tilbi plan at the end of the current period?')) return;
-          try {
-            const result = await ipcRenderer.invoke('subscription-cancel', { cancelImmediately: false });
-            if (!result || !result.success) {
-              setBillingMessage((result && result.error) || 'Could not cancel.', 'error');
-              return;
-            }
-            setBillingMessage('Plan will end after the current period.', 'ok');
-            await refreshBillingUI();
-          } catch (err) {
-            setBillingMessage((err && err.message) || 'Cancel failed.', 'error');
-          }
-        });
-      }
-      if (resumeBtn) {
-        resumeBtn.addEventListener('click', async () => {
-          try {
-            const result = await ipcRenderer.invoke('subscription-resume');
-            if (!result || !result.success) {
-              setBillingMessage((result && result.error) || 'Could not resume.', 'error');
-              return;
-            }
-            setBillingMessage('Plan resumed.', 'ok');
-            await refreshBillingUI();
-          } catch (err) {
-            setBillingMessage((err && err.message) || 'Resume failed.', 'error');
-          }
-        });
-      }
-
-      window.addEventListener('focus', () => {
-        const overlay = document.getElementById('preferencesOverlay');
-        if (overlay && overlay.style.display === 'block') {
-          confirmPendingPaypal(true).then(() => refreshBillingUI());
+          ipcRenderer.send('open-external-link', result.url);
+        } catch (err) {
+          setBillingMessage((err && err.message) || 'Could not open billing portal.', 'error');
         }
-      });
-    })();
+        return;
+      }
+      if (e.target.closest('.billing-cancel-btn')) {
+        if (!confirm('Cancel your Tilbi plan at the end of the current period?')) return;
+        try {
+          const result = await ipcRenderer.invoke('subscription-cancel', { cancelImmediately: false });
+          if (!result || !result.success) {
+            setBillingMessage((result && result.error) || 'Could not cancel.', 'error');
+            return;
+          }
+          setBillingMessage('Plan will end after the current period.', 'ok');
+          await refreshBillingUI();
+        } catch (err) {
+          setBillingMessage((err && err.message) || 'Cancel failed.', 'error');
+        }
+        return;
+      }
+      if (e.target.closest('.billing-resume-btn')) {
+        try {
+          const result = await ipcRenderer.invoke('subscription-resume');
+          if (!result || !result.success) {
+            setBillingMessage((result && result.error) || 'Could not resume.', 'error');
+            return;
+          }
+          setBillingMessage('Plan resumed.', 'ok');
+          await refreshBillingUI();
+        } catch (err) {
+          setBillingMessage((err && err.message) || 'Resume failed.', 'error');
+        }
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (!e.target.classList || !e.target.classList.contains('billing-password')) return;
+      billingLoginOrRegister('login');
+    });
+
+    window.addEventListener('focus', () => {
+      const settingsOverlay = document.getElementById('loginner-settings-overlay');
+      const pref = document.getElementById('preferencesOverlay');
+      const billingOpen = (settingsOverlay && settingsOverlay.style.display === 'block') ||
+        (pref && pref.style.display === 'block');
+      if (billingOpen) {
+        confirmPendingPaypal(true).then(() => refreshBillingUI());
+      }
+    });
+
 
 
     // Auto-update functionality (early init so preferences always works)
@@ -8095,7 +8137,6 @@ searchInput.disabled = true;
     headerTitle.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      // Only open settings if not in compact view
       const currentSize = localStorage.getItem('tilbi-size') || 'normal';
       if (currentSize !== 'large') {
         showPreferences();
@@ -8105,12 +8146,21 @@ searchInput.disabled = true;
     headerLogo.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      // Only open settings if not in compact view
       const currentSize = localStorage.getItem('tilbi-size') || 'normal';
       if (currentSize !== 'large') {
         showPreferences();
       }
     };
+
+    const headerSettings = document.getElementById('headerSettings');
+    if (headerSettings) {
+      headerSettings.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof showSettingsModal === 'function') showSettingsModal();
+        else showPreferences();
+      };
+    }
 
     closePreferences.addEventListener('click', hidePreferences);
 
@@ -12572,7 +12622,7 @@ searchInput.disabled = true;
         const currentProject = currentSession && currentSession.project ? currentSession.project : '';
         
         content.innerHTML = `
-            
+            ${getBillingSectionHtml()}
 
             <!-- Select Project Section -->
             <div style="margin-bottom: 12px; border: 1px solid rgba(59,130,246,0.4); border-radius: 10px; padding: 10px; width: 100%; box-sizing: border-box;">
@@ -12748,6 +12798,7 @@ searchInput.disabled = true;
         `;
       }
       overlay.style.display = 'block';
+      if (typeof refreshBillingUI === 'function') refreshBillingUI();
       
       // Add event handlers for the buttons
       setTimeout(() => {
