@@ -3,7 +3,7 @@
 ; REQUIRED: Run 'npm run build' first to create dist\win-unpacked\
 
 #define MyAppName "Tilbi"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "Globinner"
 #define MyAppURL "https://www.globinner.com"
 #define MyAppExeName "Tilbi.exe"
@@ -44,40 +44,33 @@ VersionInfoProductVersion={#MyAppVersion}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
 Name: "startupicon"; Description: "Start {#MyAppName} when Windows starts"; GroupDescription: "Startup:"
 
 [Files]
-; Main application files - ALL files from the built Electron app
-; This includes Tilbi.exe, all DLLs, resources (with app.asar), locales, etc.
+; Packaged Electron app only. Do NOT also copy a loose resources\app folder —
+; Electron prefers that folder over app.asar and then crashes (missing electron-store).
 Source: "dist\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Include icon file explicitly for shortcuts
 Source: "icons\icon.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
-; CRITICAL: Include source files directly to ensure latest version (overwrites dist files)
-Source: "popup.html"; DestDir: "{app}\resources\app"; Flags: ignoreversion
-Source: "index.js"; DestDir: "{app}\resources\app"; Flags: ignoreversion
-Source: "subscription.js"; DestDir: "{app}\resources\app"; Flags: ignoreversion
-Source: "package.json"; DestDir: "{app}\resources\app"; Flags: ignoreversion
-Source: "*.js"; DestDir: "{app}\resources\app"; Flags: ignoreversion
-Source: "fonts\*"; DestDir: "{app}\resources\app\fonts"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "icons\*"; DestDir: "{app}\resources\app\icons"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "*.html"; DestDir: "{app}\resources\app"; Flags: ignoreversion
-Source: "*.mp3"; DestDir: "{app}\resources\app"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "*.wav"; DestDir: "{app}\resources\app"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "app-update.yml"; DestDir: "{app}\resources"; Flags: ignoreversion skipifsourcedoesntexist
+
+[InstallDelete]
+; Remove leftover unpacked app trees from older installers/hotfixes
+Type: filesandordirs; Name: "{app}\resources\app"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icons\icon.ico"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icons\icon.ico"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icons\icon.ico"; Tasks: quicklaunchicon
+; Desktop shortcut: display name is "Tilbi" (not Tilbi.exe)
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icons\icon.ico,0"; Comment: "{#MyAppName}"
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icons\icon.ico,0"; Tasks: quicklaunchicon
 
 [Registry]
 ; Add to Windows startup if task selected
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: startupicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -87,53 +80,33 @@ var
   IsUpgrade: Boolean;
 
 function InitializeSetup(): Boolean;
-var
-  AppDataPath: String;
-  LocalAppDataPath: String;
 begin
   Result := True;
   IsUpgrade := RegKeyExists(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{#emit SetupSetting("AppId")}_is1');
-  
-  // Clean install: Delete existing app data on first install (not upgrade)
-  if not IsUpgrade then
-  begin
-    AppDataPath := ExpandConstant('{userappdata}\{#MyAppName}');
-    LocalAppDataPath := ExpandConstant('{localappdata}\{#MyAppName}');
-    
-    if DirExists(AppDataPath) then
-    begin
-      DelTree(AppDataPath, True, True, True);
-    end;
-    
-    if DirExists(LocalAppDataPath) then
-    begin
-      DelTree(LocalAppDataPath, True, True, True);
-    end;
-  end;
+  // Never delete user AppData here — upgrades and reinstalls must keep saved data.
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  DesktopShortcut: String;
-  IconOnlyShortcut: String;
-  VBScript: String;
-  VBScriptPath: String;
-  ResultCode: Integer;
+  Desktop: String;
+  BadShortcut: String;
+  BadNames: array of String;
+  LooseApp: String;
+  I: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
-    // Make desktop shortcut icon-only (no text label) using VBScript
-    DesktopShortcut := ExpandConstant('{autodesktop}\{#MyAppName}.lnk');
-    IconOnlyShortcut := ExpandConstant('{autodesktop}\ .lnk');
-    if FileExists(DesktopShortcut) then
+    LooseApp := ExpandConstant('{app}\resources\app');
+    if DirExists(LooseApp) then
+      DelTree(LooseApp, True, True, True);
+
+    Desktop := ExpandConstant('{autodesktop}');
+    BadNames := ['Tilbi.exe - Shortcut.lnk', '{#MyAppExeName} - Shortcut.lnk', 'Tilbi.exe.lnk', 'Loginner.lnk', 'Loginner.exe - Shortcut.lnk'];
+    for I := 0 to GetArrayLength(BadNames) - 1 do
     begin
-      VBScriptPath := ExpandConstant('{tmp}\HideShortcutLabel.vbs');
-      VBScript := 'Set fso = CreateObject("Scripting.FileSystemObject")' + #13#10 +
-                  'Set f = fso.GetFile("' + DesktopShortcut + '")' + #13#10 +
-                  'f.Name = " .lnk"';
-      SaveStringToFile(VBScriptPath, VBScript, False);
-      Exec('cscript.exe', '/nologo "' + VBScriptPath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      DeleteFile(VBScriptPath);
+      BadShortcut := Desktop + '\' + BadNames[I];
+      if FileExists(BadShortcut) then
+        DeleteFile(BadShortcut);
     end;
   end;
 end;

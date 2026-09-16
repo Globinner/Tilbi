@@ -575,12 +575,22 @@ function runDownloadedInstallerAndQuit() {
 
   for (const installerPath of candidates) {
     if (!fs.existsSync(installerPath)) continue;
-    spawn(installerPath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/CLOSEAPPLICATIONS'], {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true
-    }).unref();
-    setTimeout(() => app.quit(), 500);
+    const exePath = process.execPath;
+    const q = (p) => `"${String(p).replace(/"/g, '')}"`;
+    spawn(
+      process.env.ComSpec || 'cmd.exe',
+      [
+        '/c',
+        `start /wait "" ${q(installerPath)} /VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTART & start "" ${q(exePath)}`
+      ],
+      {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+        shell: false
+      }
+    ).unref();
+    setTimeout(() => app.quit(), 400);
     return true;
   }
   return false;
