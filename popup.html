@@ -3621,6 +3621,55 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       .billing-plan-grid { grid-template-columns: 1fr; }
     }
 
+    #license-paywall {
+      display: none;
+      position: fixed;
+      top: 46px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 200000;
+      background: #1e3a8a;
+      overflow-y: auto;
+      -webkit-app-region: no-drag;
+      padding: 16px 18px 24px 18px;
+      box-sizing: border-box;
+    }
+    #license-paywall.is-visible { display: block; }
+    .license-paywall-inner { max-width: 560px; margin: 0 auto; }
+    .license-paywall-inner h2 {
+      color: #ffffff;
+      font-size: 20px;
+      margin: 0 0 8px 0;
+    }
+    #license-paywall-reason {
+      color: rgba(226, 232, 240, 0.95);
+      font-size: 14px;
+      line-height: 1.45;
+      margin: 0 0 16px 0;
+    }
+    #license-trial-banner {
+      display: none;
+      background: #0f766e;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      padding: 6px 10px;
+      -webkit-app-region: no-drag;
+    }
+    #license-trial-banner.is-visible { display: block; }
+    body.license-locked .tabs,
+    body.license-locked .search-bar,
+    body.license-locked .list-container,
+    body.license-locked #headerClock,
+    body.license-locked #headerVideo,
+    body.license-locked #headerCamera,
+    body.license-locked #headerSettings,
+    body.license-locked #headerSizeToggle {
+      pointer-events: none !important;
+    }
+
     /* RTL Language Support */
     [dir="rtl"] .header {
       direction: rtl;
@@ -4119,6 +4168,14 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       <span class="material-icons header-camera" id="headerCamera" style="color: white; cursor: pointer; font-size: 20px; -webkit-app-region: no-drag;">photo_camera</span>
       <span class="minimize-btn" id="minimize-btn">⎯</span>
       <span class="close-btn" id="close-btn">✕</span>
+    </div>
+  </div>
+  <div id="license-trial-banner"></div>
+  <div id="license-paywall" aria-hidden="true">
+    <div class="license-paywall-inner">
+      <h2>Tilbi is locked</h2>
+      <p id="license-paywall-reason">Your 7-day trial has ended. Sign in and subscribe to keep using Tilbi.</p>
+      <div data-billing-slot></div>
     </div>
   </div>
   
@@ -7721,6 +7778,11 @@ searchInput.disabled = true;
     window.refreshBillingUI = refreshBillingUI;
 
     function getActiveBillingRoot() {
+      const paywall = document.getElementById('license-paywall');
+      if (paywall && paywall.classList.contains('is-visible')) {
+        const root = paywall.querySelector('.billing-section');
+        if (root) return root;
+      }
       const settingsOverlay = document.getElementById('loginner-settings-overlay');
       if (settingsOverlay && settingsOverlay.style.display === 'block') {
         const root = settingsOverlay.querySelector('.billing-section');
@@ -7862,6 +7924,7 @@ searchInput.disabled = true;
         if (passwordEl) passwordEl.value = '';
         setBillingMessage(mode === 'register' ? 'Account created.' : 'Signed in.', 'ok');
         await refreshBillingUI();
+        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
       } catch (err) {
         setBillingMessage((err && err.message) || 'Sign-in failed. Is the billing server running?', 'error');
       } finally {
@@ -7912,6 +7975,7 @@ searchInput.disabled = true;
         }
         pendingPaypalSubscriptionId = null;
         setBillingMessage('PayPal payment confirmed.', 'ok');
+        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
       } catch (err) {
         if (!silent) {
           setBillingMessage((err && err.message) || 'Waiting for PayPal confirmation...', 'error');
@@ -7927,12 +7991,16 @@ searchInput.disabled = true;
         pendingPaypalSubscriptionId = null;
         await ipcRenderer.invoke('subscription-logout');
         setBillingMessage('Signed out.', 'ok');
-        return refreshBillingUI();
+        await refreshBillingUI();
+        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
+        return;
       }
       if (e.target.closest('.billing-refresh-btn')) {
         setBillingMessage('Checking plan...');
         await confirmPendingPaypal();
-        return refreshBillingUI();
+        await refreshBillingUI();
+        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
+        return;
       }
       const stripeBtn = e.target.closest('.billing-pay-stripe');
       if (stripeBtn) return startCheckout(stripeBtn.dataset.plan, 'stripe');
@@ -7996,6 +8064,63 @@ searchInput.disabled = true;
         confirmPendingPaypal(true).then(() => refreshBillingUI());
       }
     });
+
+    function applyLicenseAccess(access) {
+      const paywall = document.getElementById('license-paywall');
+      const reasonEl = document.getElementById('license-paywall-reason');
+      const banner = document.getElementById('license-trial-banner');
+      if (!access) return;
+
+      const allowed = !!access.allowed;
+      document.body.classList.toggle('license-locked', !allowed);
+      if (paywall) {
+        paywall.classList.toggle('is-visible', !allowed);
+        paywall.setAttribute('aria-hidden', allowed ? 'true' : 'false');
+      }
+      if (reasonEl) {
+        reasonEl.textContent = access.reason || (allowed
+          ? ''
+          : 'Sign in and choose Monthly $5 or Yearly $29 to keep using Tilbi.');
+      }
+      if (banner) {
+        const trial = access.trial;
+        const showTrial = allowed && access.source === 'trial' && trial && trial.active;
+        banner.classList.toggle('is-visible', !!showTrial);
+        if (showTrial) {
+          const days = trial.daysLeft === 1 ? '1 day' : (trial.daysLeft + ' days');
+          banner.textContent = 'Trial: ' + days + ' left — subscribe in Settings to keep Tilbi after the trial.';
+        }
+      }
+      if (!allowed && typeof refreshBillingUI === 'function') {
+        refreshBillingUI();
+      }
+    }
+
+    async function refreshLicenseAccess() {
+      try {
+        const access = await ipcRenderer.invoke('subscription-refresh-access');
+        applyLicenseAccess(access);
+        if (typeof refreshBillingUI === 'function') await refreshBillingUI();
+        return access;
+      } catch (err) {
+        applyLicenseAccess({
+          allowed: false,
+          source: 'error',
+          reason: (err && err.message) || 'Could not verify license.',
+        });
+        return null;
+      }
+    }
+
+    ipcRenderer.on('license-access', (_event, access) => {
+      applyLicenseAccess(access);
+    });
+
+    ipcRenderer.on('subscription-requires-validation', () => {
+      refreshLicenseAccess();
+    });
+
+    refreshLicenseAccess();
 
 
 

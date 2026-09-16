@@ -138,6 +138,86 @@ function getAuthToken() {
   return store.get('authToken');
 }
 
+const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+
+function getTrialState() {
+  let started = Number(store.get('trialStartedAt') || 0);
+  if (!started) {
+    started = Date.now();
+    store.set('trialStartedAt', started);
+  }
+  const ends = started + TRIAL_DURATION_MS;
+  const remaining = ends - Date.now();
+  return {
+    active: remaining > 0,
+    trialStartedAt: started,
+    trialEndsAt: ends,
+    daysLeft: Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000))),
+  };
+}
+
+async function evaluateAccess() {
+  const trial = getTrialState();
+  const account = getAccount();
+
+  if (account.authenticated) {
+    const result = await validateLicense();
+    if (result && result.valid) {
+      return {
+        allowed: true,
+        source: result.offline ? 'offline' : 'subscription',
+        reason: result.offline ? (result.warning || 'Offline grace period') : null,
+        trial,
+        account,
+        planType:
+          (result.subscription && result.subscription.planType) ||
+          (store.get('subscriptionStatus') || {}).planType ||
+          null,
+      };
+    }
+    if (trial.active) {
+      return {
+        allowed: true,
+        source: 'trial',
+        reason: result && result.reason ? result.reason : null,
+        trial,
+        account,
+        planType: null,
+      };
+    }
+    return {
+      allowed: false,
+      source: result && result.requiresOnline ? 'offline-expired' : 'unpaid',
+      reason:
+        (result && result.reason) ||
+        'No active subscription. Choose Monthly $5 or Yearly $29.',
+      trial,
+      account,
+      planType: null,
+    };
+  }
+
+  if (trial.active) {
+    return {
+      allowed: true,
+      source: 'trial',
+      reason: null,
+      trial,
+      account,
+      planType: null,
+    };
+  }
+
+  return {
+    allowed: false,
+    source: 'trial-expired',
+    reason: 'Your 7-day trial has ended. Sign in and subscribe to keep using Tilbi.',
+    trial,
+    account,
+    planType: null,
+  };
+}
+
 // License validation
 async function validateLicense() {
   const token = getAuthToken();
@@ -371,6 +451,8 @@ module.exports = {
   isAuthenticated,
   getAccount,
   getAuthToken,
+  getTrialState,
+  evaluateAccess,
   validateLicense,
   getSubscriptionStatus,
   createSubscription,

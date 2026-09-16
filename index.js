@@ -1037,6 +1037,7 @@ function createMainWindow(options = {}) {
       pinned: pinnedItems,
       screener: screenerItems
     });
+    mainWindow.webContents.send('license-access', appAccess);
         } catch (error) {
           console.warn('Failed to send clipboard data to renderer:', error);
         }
@@ -1384,14 +1385,17 @@ app.whenReady().then(() => {
     store.set('eulaVersion', '1.0');
   }
 
-  // Validate license before starting
-  validateLicenseOnStartup().then(() => {
+  // Check license, then open the app. Unpaid / expired trial still gets a window (paywall).
+  refreshAppAccess().then((access) => {
     createMainWindow();
-    startClipboardMonitoring();
+    if (access && access.allowed) startClipboardMonitoring();
   }).catch(() => {
-    // Still create window even if validation fails (will show subscription UI)
+    appAccess = {
+      allowed: false,
+      source: 'error',
+      reason: 'Could not verify license. Sign in and subscribe to use Tilbi.',
+    };
     createMainWindow();
-    startClipboardMonitoring();
   });
   
   // Register global shortcut (Ctrl+Shift+V)
@@ -1840,6 +1844,7 @@ async function startScreenshotCapture() {
 
 ipcMain.on('take-screenshot', () => {
   console.log('IPC: take-screenshot received');
+  if (!isAppUnlocked()) return;
   startScreenshotCapture();
 });
 
@@ -2509,6 +2514,7 @@ ipcMain.on('capture-full-webpage', async (event, urlInput) => {
 
 ipcMain.on('start-video-recording', async (event) => {
   console.log('IPC: start-video-recording received');
+  if (!isAppUnlocked()) return;
   try {
     // Hide main window immediately for video recording
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -2802,6 +2808,7 @@ ipcMain.on('cancel-video-recording', () => {
 
 // Handle video area selection
 ipcMain.on('start-video-recording-area', async (event, bounds) => {
+  if (!isAppUnlocked()) return;
   try {
     // Keep selection window visible but disable interaction
     if (selectionWindow) {
@@ -3003,56 +3010,54 @@ ipcMain.handle('get-video-bounds', () => {
 // SUBSCRIPTION & LICENSE MANAGEMENT IPC HANDLERS
 // ============================================================================
 
-// License validation on startup
-async function validateLicenseOnStartup() {
-  if (!subscription.isAuthenticated()) {
-    console.log('⚠️ User not authenticated, skipping license validation');
-    return { valid: false, reason: 'Not authenticated' };
-  }
+let appAccess = { allowed: false, source: 'pending', reason: 'Checking license...' };
 
-  try {
-    const result = await subscription.validateLicense();
-    console.log('📝 License validation result:', result.valid ? '✅ Valid' : '❌ Invalid');
-    
-    // Schedule periodic validation (every 24 hours)
-    if (result.valid) {
-      schedulePeriodicValidation();
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('❌ License validation error:', error);
-    return { valid: false, reason: error.message };
-  }
+function isAppUnlocked() {
+  return !!(appAccess && appAccess.allowed);
 }
 
-// Schedule periodic license validation (prevents long-term offline use)
+async function refreshAppAccess() {
+  try {
+    appAccess = await subscription.evaluateAccess();
+  } catch (error) {
+    console.error('License access check failed:', error);
+    appAccess = {
+      allowed: false,
+      source: 'error',
+      reason: error.message || 'Could not verify license.',
+    };
+  }
+
+  if (appAccess.allowed) {
+    startClipboardMonitoring();
+  } else {
+    stopClipboardMonitoring();
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('license-access', appAccess);
+  }
+  return appAccess;
+}
+
+async function validateLicenseOnStartup() {
+  return refreshAppAccess();
+}
+
 let validationInterval = null;
 function schedulePeriodicValidation() {
-  // Clear existing interval
   if (validationInterval) {
     clearInterval(validationInterval);
   }
-  
-  // Validate every 24 hours
   validationInterval = setInterval(async () => {
-    if (subscription.isAuthenticated()) {
-      console.log('🔄 Periodic license validation...');
-      try {
-        const result = await subscription.validateLicense();
-        if (!result.valid && result.requiresOnline) {
-          console.warn('⚠️ Subscription requires online validation');
-          // Notify renderer process to show subscription UI
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('subscription-requires-validation', result);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Periodic validation error:', error);
-      }
+    try {
+      await refreshAppAccess();
+    } catch (error) {
+      console.error('❌ Periodic validation error:', error);
     }
-  }, 24 * 60 * 60 * 1000); // 24 hours
+  }, 60 * 60 * 1000);
 }
+schedulePeriodicValidation();
 
 // Authentication handlers
 ipcMain.handle('subscription-login', async (event, { email, password }) => {
@@ -3084,6 +3089,14 @@ ipcMain.handle('subscription-validate-license', async () => {
 // Subscription status
 ipcMain.handle('subscription-get-status', async () => {
   return await subscription.getSubscriptionStatus();
+});
+
+ipcMain.handle('subscription-get-access', async () => {
+  return appAccess;
+});
+
+ipcMain.handle('subscription-refresh-access', async () => {
+  return await refreshAppAccess();
 });
 
 // Create subscription
