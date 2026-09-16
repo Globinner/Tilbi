@@ -4,13 +4,11 @@ const fs = require('fs');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'tilbi.db');
 
-// Ensure data directory exists
 const dbDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-// Initialize database
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('❌ Database connection error:', err.message);
@@ -20,9 +18,25 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   }
 });
 
-// Initialize database tables
+function runMigration(sql) {
+  return new Promise((resolve) => {
+    db.run(sql, (err) => {
+      if (err && !/duplicate column name/i.test(err.message)) {
+        console.warn('Migration note:', err.message);
+      }
+      resolve();
+    });
+  });
+}
+
+async function migrateSchema() {
+  await runMigration(`ALTER TABLE subscriptions ADD COLUMN payment_provider TEXT DEFAULT 'stripe'`);
+  await runMigration(`ALTER TABLE subscriptions ADD COLUMN paypal_subscription_id TEXT`);
+  await runMigration(`ALTER TABLE payments ADD COLUMN payment_provider TEXT DEFAULT 'stripe'`);
+  await runMigration(`ALTER TABLE payments ADD COLUMN external_payment_id TEXT`);
+}
+
 function initializeTables() {
-  // Users table
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,13 +47,14 @@ function initializeTables() {
     )
   `);
 
-  // Subscriptions table
   db.run(`
     CREATE TABLE IF NOT EXISTS subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
+      payment_provider TEXT DEFAULT 'stripe',
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT UNIQUE,
+      paypal_subscription_id TEXT UNIQUE,
       plan_type TEXT NOT NULL CHECK(plan_type IN ('monthly', 'yearly')),
       status TEXT NOT NULL CHECK(status IN ('active', 'canceled', 'past_due', 'trialing')),
       current_period_start DATETIME,
@@ -51,7 +66,6 @@ function initializeTables() {
     )
   `);
 
-  // Licenses table (for tracking active installations)
   db.run(`
     CREATE TABLE IF NOT EXISTS licenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,12 +79,13 @@ function initializeTables() {
     )
   `);
 
-  // Payment history table
   db.run(`
     CREATE TABLE IF NOT EXISTS payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
+      payment_provider TEXT DEFAULT 'stripe',
       stripe_payment_intent_id TEXT UNIQUE,
+      external_payment_id TEXT,
       amount INTEGER NOT NULL,
       currency TEXT DEFAULT 'usd',
       status TEXT NOT NULL,
@@ -79,12 +94,12 @@ function initializeTables() {
     )
   `);
 
-  console.log('✅ Database tables initialized');
+  migrateSchema().then(() => {
+    console.log('✅ Database tables initialized');
+  });
 }
 
-// Database helper functions
 const dbHelpers = {
-  // User operations
   createUser: (email, passwordHash) => {
     return new Promise((resolve, reject) => {
       db.run(
@@ -116,23 +131,26 @@ const dbHelpers = {
     });
   },
 
-  // Subscription operations
   createSubscription: (userId, subscriptionData) => {
+    const provider = subscriptionData.paymentProvider || 'stripe';
     return new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO subscriptions 
-         (user_id, stripe_customer_id, stripe_subscription_id, plan_type, status, 
+        `INSERT INTO subscriptions
+         (user_id, payment_provider, stripe_customer_id, stripe_subscription_id,
+          paypal_subscription_id, plan_type, status,
           current_period_start, current_period_end, cancel_at_period_end)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
-          subscriptionData.stripeCustomerId,
-          subscriptionData.stripeSubscriptionId,
+          provider,
+          subscriptionData.stripeCustomerId || null,
+          subscriptionData.stripeSubscriptionId || null,
+          subscriptionData.paypalSubscriptionId || null,
           subscriptionData.planType,
           subscriptionData.status,
           subscriptionData.currentPeriodStart,
           subscriptionData.currentPeriodEnd,
-          subscriptionData.cancelAtPeriodEnd || 0
+          subscriptionData.cancelAtPeriodEnd ? 1 : 0,
         ],
         function(err) {
           if (err) reject(err);
@@ -145,16 +163,16 @@ const dbHelpers = {
   updateSubscription: (stripeSubscriptionId, subscriptionData) => {
     return new Promise((resolve, reject) => {
       db.run(
-        `UPDATE subscriptions 
-         SET status = ?, current_period_start = ?, current_period_end = ?, 
+        `UPDATE subscriptions
+         SET status = ?, current_period_start = ?, current_period_end = ?,
              cancel_at_period_end = ?, updated_at = CURRENT_TIMESTAMP
          WHERE stripe_subscription_id = ?`,
         [
           subscriptionData.status,
           subscriptionData.currentPeriodStart,
           subscriptionData.currentPeriodEnd,
-          subscriptionData.cancelAtPeriodEnd || 0,
-          stripeSubscriptionId
+          subscriptionData.cancelAtPeriodEnd ? 1 : 0,
+          stripeSubscriptionId,
         ],
         function(err) {
           if (err) reject(err);
@@ -164,10 +182,45 @@ const dbHelpers = {
     });
   },
 
+  updatePayPalSubscription: (paypalSubscriptionId, subscriptionData) => {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE subscriptions
+         SET status = ?, current_period_start = ?, current_period_end = ?,
+             cancel_at_period_end = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE paypal_subscription_id = ?`,
+        [
+          subscriptionData.status,
+          subscriptionData.currentPeriodStart,
+          subscriptionData.currentPeriodEnd,
+          subscriptionData.cancelAtPeriodEnd ? 1 : 0,
+          paypalSubscriptionId,
+        ],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        }
+      );
+    });
+  },
+
+  getSubscriptionByPayPalId: (paypalSubscriptionId) => {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM subscriptions WHERE paypal_subscription_id = ?',
+        [paypalSubscriptionId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  },
+
   getActiveSubscription: (userId) => {
     return new Promise((resolve, reject) => {
       db.get(
-        `SELECT * FROM subscriptions 
+        `SELECT * FROM subscriptions
          WHERE user_id = ? AND status IN ('active', 'trialing')
          ORDER BY created_at DESC LIMIT 1`,
         [userId],
@@ -179,7 +232,6 @@ const dbHelpers = {
     });
   },
 
-  // License operations
   registerDevice: (userId, deviceId, deviceName) => {
     return new Promise((resolve, reject) => {
       db.run(
@@ -220,18 +272,26 @@ const dbHelpers = {
     });
   },
 
-  // Payment operations
   recordPayment: (userId, paymentData) => {
+    const provider = paymentData.paymentProvider || 'stripe';
+    const externalId =
+      paymentData.externalPaymentId ||
+      paymentData.stripePaymentIntentId ||
+      paymentData.paypalPaymentId;
+
     return new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO payments (user_id, stripe_payment_intent_id, amount, currency, status)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO payments
+         (user_id, payment_provider, stripe_payment_intent_id, external_payment_id, amount, currency, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
-          paymentData.stripePaymentIntentId,
+          provider,
+          provider === 'stripe' ? externalId : null,
+          externalId,
           paymentData.amount,
           paymentData.currency || 'usd',
-          paymentData.status
+          paymentData.status,
         ],
         function(err) {
           if (err) reject(err);
@@ -239,8 +299,7 @@ const dbHelpers = {
         }
       );
     });
-  }
+  },
 };
 
 module.exports = { db, dbHelpers };
-

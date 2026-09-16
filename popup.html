@@ -3511,6 +3511,87 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       color: rgba(226, 232, 240, 0.95) !important;
     }
 
+    .billing-plan-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .billing-plan-card {
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 10px;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.25);
+    }
+    .billing-plan-card.is-current {
+      border-color: #86efac;
+      background: rgba(34, 197, 94, 0.14);
+    }
+    .billing-plan-name {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #ffffff !important;
+    }
+    .billing-plan-price {
+      font-size: 22px;
+      font-weight: 800;
+      color: #ffffff !important;
+      line-height: 1.2;
+    }
+    .billing-plan-price span {
+      font-size: 12px;
+      font-weight: 500;
+      margin-left: 4px;
+      color: rgba(226, 232, 240, 0.8) !important;
+    }
+    .billing-plan-note {
+      font-size: 11px;
+      margin: 6px 0 8px 0;
+      color: #86efac !important;
+    }
+    .billing-plan-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .preferences-dialog button.billing-btn-paypal {
+      background: #ffc439 !important;
+      color: #111111 !important;
+      border-color: #d4a017 !important;
+    }
+    .preferences-dialog button.billing-btn-manage {
+      background: #0f766e !important;
+      border-color: #0d9488 !important;
+    }
+    .preferences-dialog button.billing-btn-cancel {
+      background: #b91c1c !important;
+      border-color: #991b1b !important;
+    }
+    .billing-auth-row input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-sizing: border-box;
+      margin-bottom: 8px;
+      font-size: 13px;
+      background: #0f172a;
+      color: #ffffff;
+    }
+    #billing-message.is-error { color: #fca5a5 !important; }
+    #billing-message.is-ok { color: #86efac !important; }
+    #billing-manage-row {
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    @media (max-width: 560px) {
+      .billing-plan-grid { grid-template-columns: 1fr; }
+    }
+
     /* RTL Language Support */
     [dir="rtl"] .header {
       direction: rtl;
@@ -4767,6 +4848,55 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
         <button class="preferences-close" id="closePreferences">✕</button>
       </div>
       <div class="preferences-content">
+        <div class="preferences-section" id="billing-section">
+          <h3>Plan &amp; Billing</h3>
+          <p id="billing-status-line">$5 / month or $29 / year. Sign in to subscribe or see the plan you own.</p>
+          <p id="billing-message" style="display: none; font-size: 12px; margin-top: 4px;"></p>
+
+          <div id="billing-auth-signed-out" class="billing-auth-row">
+            <input id="billing-email" type="email" placeholder="Email" autocomplete="username">
+            <input id="billing-password" type="password" placeholder="Password (min 8 for new accounts)" autocomplete="current-password">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="billing-login-btn">Log in</button>
+              <button type="button" id="billing-register-btn">Create account</button>
+            </div>
+          </div>
+
+          <div id="billing-auth-signed-in" style="display: none;">
+            <p id="billing-user-email" style="margin-bottom: 8px;"></p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
+              <button type="button" id="billing-refresh-btn">Refresh status</button>
+              <button type="button" id="billing-logout-btn">Log out</button>
+            </div>
+          </div>
+
+          <div class="billing-plan-grid" id="billing-plans">
+            <div class="billing-plan-card" id="billing-card-monthly">
+              <div class="billing-plan-name">Monthly</div>
+              <div class="billing-plan-price">$5<span>/month</span></div>
+              <div class="billing-plan-actions">
+                <button type="button" class="billing-pay-stripe" data-plan="monthly">Pay with card</button>
+                <button type="button" class="billing-btn-paypal billing-pay-paypal" data-plan="monthly">Pay with PayPal</button>
+              </div>
+            </div>
+            <div class="billing-plan-card" id="billing-card-yearly">
+              <div class="billing-plan-name">Yearly</div>
+              <div class="billing-plan-price">$29<span>/year</span></div>
+              <div class="billing-plan-note">Save $31 vs monthly</div>
+              <div class="billing-plan-actions">
+                <button type="button" class="billing-pay-stripe" data-plan="yearly">Pay with card</button>
+                <button type="button" class="billing-btn-paypal billing-pay-paypal" data-plan="yearly">Pay with PayPal</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="billing-manage-row">
+            <button type="button" id="billing-manage-btn" class="billing-btn-manage">Manage billing</button>
+            <button type="button" id="billing-resume-btn" class="billing-btn-manage" style="display: none;">Resume plan</button>
+            <button type="button" id="billing-cancel-btn" class="billing-btn-cancel">Cancel plan</button>
+          </div>
+        </div>
+
         <div class="preferences-section">
           <h3 style="display: flex; align-items: center; justify-content: space-between;">
             <span>⏱️ Show Loginner Tab</span>
@@ -7537,6 +7667,7 @@ searchInput.disabled = true;
       // Load and highlight current theme
       loadThemePreference();
       loadUpdateSettings();
+      if (typeof refreshBillingUI === 'function') refreshBillingUI();
       
       // Disable window dragging when modal is open
       document.querySelector('.header').style.webkitAppRegion = 'no-drag';
@@ -7547,6 +7678,282 @@ searchInput.disabled = true;
       // Restore window dragging after preferences is closed
       document.querySelector('.header').style.webkitAppRegion = 'drag';
     }
+
+    let pendingPaypalSubscriptionId = null;
+    let billingBusy = false;
+
+    function setBillingMessage(text, kind) {
+      const el = document.getElementById('billing-message');
+      if (!el) return;
+      if (!text) {
+        el.style.display = 'none';
+        el.textContent = '';
+        el.className = '';
+        return;
+      }
+      el.style.display = 'block';
+      el.textContent = text;
+      el.className = kind === 'error' ? 'is-error' : 'is-ok';
+    }
+
+    function formatPlanLabel(planType) {
+      if (planType === 'yearly') return 'Yearly — $29/year';
+      if (planType === 'monthly') return 'Monthly — $5/month';
+      return planType || 'None';
+    }
+
+    function setPayButtonsEnabled(enabled) {
+      document.querySelectorAll('.billing-pay-stripe, .billing-pay-paypal').forEach((btn) => {
+        btn.disabled = !enabled;
+        btn.style.opacity = enabled ? '1' : '0.55';
+      });
+    }
+
+    async function refreshBillingUI() {
+      const statusLine = document.getElementById('billing-status-line');
+      const signedOut = document.getElementById('billing-auth-signed-out');
+      const signedIn = document.getElementById('billing-auth-signed-in');
+      const userEmail = document.getElementById('billing-user-email');
+      const manageRow = document.getElementById('billing-manage-row');
+      const resumeBtn = document.getElementById('billing-resume-btn');
+      const monthlyCard = document.getElementById('billing-card-monthly');
+      const yearlyCard = document.getElementById('billing-card-yearly');
+      if (!statusLine) return;
+
+      monthlyCard && monthlyCard.classList.remove('is-current');
+      yearlyCard && yearlyCard.classList.remove('is-current');
+      if (manageRow) manageRow.style.display = 'none';
+      if (resumeBtn) resumeBtn.style.display = 'none';
+
+      let account = { authenticated: false, email: null };
+      try {
+        account = await ipcRenderer.invoke('subscription-get-account');
+      } catch (err) {
+        setBillingMessage('Could not read account status.', 'error');
+      }
+
+      if (!account || !account.authenticated) {
+        if (signedOut) signedOut.style.display = 'block';
+        if (signedIn) signedIn.style.display = 'none';
+        statusLine.textContent = '$5 / month or $29 / year. Sign in to subscribe or see the plan you own.';
+        setPayButtonsEnabled(true);
+        return;
+      }
+
+      if (signedOut) signedOut.style.display = 'none';
+      if (signedIn) signedIn.style.display = 'block';
+      if (userEmail) userEmail.textContent = 'Signed in as ' + (account.email || 'your account');
+
+      try {
+        const result = await ipcRenderer.invoke('subscription-get-status');
+        const sub = result && result.subscription;
+        if (!sub || (sub.status !== 'active' && sub.status !== 'trialing' && sub.status !== 'past_due')) {
+          statusLine.textContent = 'No active plan. Choose Monthly ($5) or Yearly ($29).';
+          setPayButtonsEnabled(true);
+          if (result && result.error) setBillingMessage(result.error, 'error');
+          return;
+        }
+
+        const providerLabel = sub.provider === 'paypal' ? 'PayPal' : 'Card (Stripe)';
+        let line = 'Current plan: ' + formatPlanLabel(sub.planType) + ' via ' + providerLabel;
+        if (sub.currentPeriodEnd) {
+          const ends = new Date(sub.currentPeriodEnd);
+          if (!isNaN(ends.getTime())) {
+            line += sub.cancelAtPeriodEnd
+              ? '. Ends ' + ends.toLocaleDateString()
+              : '. Renews ' + ends.toLocaleDateString();
+          }
+        }
+        if (sub.status === 'past_due') line += ' — payment past due';
+        statusLine.textContent = line;
+
+        if (sub.planType === 'yearly' && yearlyCard) yearlyCard.classList.add('is-current');
+        if (sub.planType === 'monthly' && monthlyCard) monthlyCard.classList.add('is-current');
+        setPayButtonsEnabled(false);
+        if (manageRow) manageRow.style.display = 'flex';
+        if (resumeBtn && sub.cancelAtPeriodEnd) resumeBtn.style.display = 'inline-flex';
+      } catch (err) {
+        statusLine.textContent = 'Signed in, but subscription status could not be loaded.';
+        setBillingMessage((err && err.message) || 'Status check failed.', 'error');
+        setPayButtonsEnabled(true);
+      }
+    }
+
+    async function billingLoginOrRegister(mode) {
+      if (billingBusy) return;
+      const emailEl = document.getElementById('billing-email');
+      const passwordEl = document.getElementById('billing-password');
+      const email = (emailEl && emailEl.value || '').trim();
+      const password = (passwordEl && passwordEl.value) || '';
+      if (!email || !password) {
+        setBillingMessage('Enter email and password.', 'error');
+        return;
+      }
+      if (mode === 'register' && password.length < 8) {
+        setBillingMessage('Password must be at least 8 characters.', 'error');
+        return;
+      }
+      billingBusy = true;
+      setBillingMessage(mode === 'register' ? 'Creating account...' : 'Signing in...');
+      try {
+        const channel = mode === 'register' ? 'subscription-register' : 'subscription-login';
+        const result = await ipcRenderer.invoke(channel, { email, password });
+        if (!result || !result.success) {
+          setBillingMessage((result && result.error) || 'Could not sign in.', 'error');
+          return;
+        }
+        if (passwordEl) passwordEl.value = '';
+        setBillingMessage(mode === 'register' ? 'Account created.' : 'Signed in.', 'ok');
+        await refreshBillingUI();
+      } catch (err) {
+        setBillingMessage((err && err.message) || 'Sign-in failed. Is the billing server running?', 'error');
+      } finally {
+        billingBusy = false;
+      }
+    }
+
+    async function startCheckout(planType, provider) {
+      if (billingBusy) return;
+      let account = { authenticated: false };
+      try {
+        account = await ipcRenderer.invoke('subscription-get-account');
+      } catch (_) {}
+      if (!account || !account.authenticated) {
+        setBillingMessage('Sign in first, then choose Stripe or PayPal.', 'error');
+        return;
+      }
+      billingBusy = true;
+      setBillingMessage(provider === 'paypal' ? 'Opening PayPal...' : 'Opening card checkout...');
+      try {
+        const result = await ipcRenderer.invoke('subscription-create', { planType, provider });
+        if (!result || !result.success || !result.checkoutUrl) {
+          setBillingMessage((result && result.error) || 'Could not start checkout.', 'error');
+          return;
+        }
+        if (provider === 'paypal' && result.subscriptionId) {
+          pendingPaypalSubscriptionId = result.subscriptionId;
+        }
+        ipcRenderer.send('open-external-link', result.checkoutUrl);
+        setBillingMessage('Complete payment in the browser, then click Refresh status.', 'ok');
+      } catch (err) {
+        setBillingMessage((err && err.message) || 'Checkout failed.', 'error');
+      } finally {
+        billingBusy = false;
+      }
+    }
+
+    async function confirmPendingPaypal(silent) {
+      if (!pendingPaypalSubscriptionId) return;
+      const subscriptionId = pendingPaypalSubscriptionId;
+      try {
+        const result = await ipcRenderer.invoke('subscription-confirm-paypal', { subscriptionId });
+        if (!result || !result.success) {
+          if (!silent) {
+            setBillingMessage((result && result.error) || 'Waiting for PayPal confirmation...', 'error');
+          }
+          return;
+        }
+        pendingPaypalSubscriptionId = null;
+        setBillingMessage('PayPal payment confirmed.', 'ok');
+      } catch (err) {
+        if (!silent) {
+          setBillingMessage((err && err.message) || 'Waiting for PayPal confirmation...', 'error');
+        }
+      }
+    }
+
+    (function initBillingSettings() {
+      const loginBtn = document.getElementById('billing-login-btn');
+      const registerBtn = document.getElementById('billing-register-btn');
+      const logoutBtn = document.getElementById('billing-logout-btn');
+      const refreshBtn = document.getElementById('billing-refresh-btn');
+      const manageBtn = document.getElementById('billing-manage-btn');
+      const cancelBtn = document.getElementById('billing-cancel-btn');
+      const resumeBtn = document.getElementById('billing-resume-btn');
+
+      if (loginBtn) loginBtn.addEventListener('click', () => billingLoginOrRegister('login'));
+      if (registerBtn) registerBtn.addEventListener('click', () => billingLoginOrRegister('register'));
+      const passwordEl = document.getElementById('billing-password');
+      if (passwordEl) {
+        passwordEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') billingLoginOrRegister('login');
+        });
+      }
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          pendingPaypalSubscriptionId = null;
+          await ipcRenderer.invoke('subscription-logout');
+          setBillingMessage('Signed out.', 'ok');
+          await refreshBillingUI();
+        });
+      }
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+          setBillingMessage('Checking plan...');
+          await confirmPendingPaypal();
+          await refreshBillingUI();
+        });
+      }
+      document.querySelectorAll('.billing-pay-stripe').forEach((btn) => {
+        btn.addEventListener('click', () => startCheckout(btn.dataset.plan, 'stripe'));
+      });
+      document.querySelectorAll('.billing-pay-paypal').forEach((btn) => {
+        btn.addEventListener('click', () => startCheckout(btn.dataset.plan, 'paypal'));
+      });
+      if (manageBtn) {
+        manageBtn.addEventListener('click', async () => {
+          try {
+            const result = await ipcRenderer.invoke('subscription-billing-portal');
+            if (!result || !result.success || !result.url) {
+              setBillingMessage((result && result.error) || 'Could not open billing portal.', 'error');
+              return;
+            }
+            ipcRenderer.send('open-external-link', result.url);
+          } catch (err) {
+            setBillingMessage((err && err.message) || 'Could not open billing portal.', 'error');
+          }
+        });
+      }
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', async () => {
+          if (!confirm('Cancel your Tilbi plan at the end of the current period?')) return;
+          try {
+            const result = await ipcRenderer.invoke('subscription-cancel', { cancelImmediately: false });
+            if (!result || !result.success) {
+              setBillingMessage((result && result.error) || 'Could not cancel.', 'error');
+              return;
+            }
+            setBillingMessage('Plan will end after the current period.', 'ok');
+            await refreshBillingUI();
+          } catch (err) {
+            setBillingMessage((err && err.message) || 'Cancel failed.', 'error');
+          }
+        });
+      }
+      if (resumeBtn) {
+        resumeBtn.addEventListener('click', async () => {
+          try {
+            const result = await ipcRenderer.invoke('subscription-resume');
+            if (!result || !result.success) {
+              setBillingMessage((result && result.error) || 'Could not resume.', 'error');
+              return;
+            }
+            setBillingMessage('Plan resumed.', 'ok');
+            await refreshBillingUI();
+          } catch (err) {
+            setBillingMessage((err && err.message) || 'Resume failed.', 'error');
+          }
+        });
+      }
+
+      window.addEventListener('focus', () => {
+        const overlay = document.getElementById('preferencesOverlay');
+        if (overlay && overlay.style.display === 'block') {
+          confirmPendingPaypal(true).then(() => refreshBillingUI());
+        }
+      });
+    })();
+
 
     // Auto-update functionality (early init so preferences always works)
     let updateSettings = {

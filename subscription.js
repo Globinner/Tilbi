@@ -126,6 +126,14 @@ function isAuthenticated() {
   return !!store.get('authToken');
 }
 
+function getAccount() {
+  return {
+    authenticated: isAuthenticated(),
+    email: store.get('userEmail') || null,
+    userId: store.get('userId') || null,
+  };
+}
+
 function getAuthToken() {
   return store.get('authToken');
 }
@@ -255,8 +263,8 @@ async function getSubscriptionStatus() {
   }
 }
 
-// Create subscription checkout
-async function createSubscription(planType) {
+// Create subscription checkout — provider: 'stripe' | 'paypal'
+async function createSubscription(planType, provider = 'stripe') {
   const token = getAuthToken();
   if (!token) {
     return { success: false, error: 'Not authenticated' };
@@ -266,10 +274,33 @@ async function createSubscription(planType) {
     const response = await apiRequest('/api/subscription/create', {
       method: 'POST',
       token,
-      body: { planType }
+      body: { planType, provider },
     });
-    
-    return { success: true, checkoutUrl: response.checkoutUrl };
+
+    return {
+      success: true,
+      provider: response.provider || provider,
+      checkoutUrl: response.checkoutUrl,
+      subscriptionId: response.subscriptionId || null,
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function confirmPayPalSubscription(subscriptionId) {
+  const token = getAuthToken();
+  if (!token) {
+    return { success: false, error: 'Not authenticated' };
+  }
+
+  try {
+    const response = await apiRequest('/api/subscription/paypal/confirm', {
+      method: 'POST',
+      token,
+      body: { subscriptionId },
+    });
+    return { success: true, subscription: response.subscription };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -338,10 +369,12 @@ module.exports = {
   register,
   logout,
   isAuthenticated,
+  getAccount,
   getAuthToken,
   validateLicense,
   getSubscriptionStatus,
   createSubscription,
+  confirmPayPalSubscription,
   cancelSubscription,
   resumeSubscription,
   getBillingPortalUrl,

@@ -3072,6 +3072,10 @@ ipcMain.handle('subscription-is-authenticated', () => {
   return subscription.isAuthenticated();
 });
 
+ipcMain.handle('subscription-get-account', () => {
+  return subscription.getAccount();
+});
+
 // License validation
 ipcMain.handle('subscription-validate-license', async () => {
   return await subscription.validateLicense();

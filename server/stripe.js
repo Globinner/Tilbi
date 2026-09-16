@@ -5,13 +5,13 @@ const { dbHelpers } = require('./database');
 const PLANS = {
   monthly: {
     priceId: process.env.STRIPE_MONTHLY_PRICE_ID || 'price_monthly_placeholder',
-    amount: 999, // $9.99
+    amount: 500, // $5.00
     currency: 'usd',
     interval: 'month'
   },
   yearly: {
     priceId: process.env.STRIPE_YEARLY_PRICE_ID || 'price_yearly_placeholder',
-    amount: 9999, // $99.99 (save ~17%)
+    amount: 2900, // $29.00
     currency: 'usd',
     interval: 'year'
   }
@@ -179,6 +179,7 @@ async function handleSubscriptionUpdate(subscription) {
   const planType = subscription.items.data[0]?.price?.recurring?.interval === 'month' ? 'monthly' : 'yearly';
   
   const subscriptionData = {
+    paymentProvider: 'stripe',
     stripeCustomerId: subscription.customer,
     stripeSubscriptionId: subscription.id,
     planType,
