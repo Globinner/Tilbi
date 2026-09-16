@@ -240,11 +240,8 @@ const PREPARE_PAGE_FOR_CAPTURE_JS = `
 
 function putImageOnClipboard(image) {
   try { clipboard.clear(); } catch (_) {}
+  // Bitmap only. Extra PNG/file formats replace CF_DIB on Windows so Ctrl+V pastes nothing.
   clipboard.writeImage(image);
-  try {
-    const png = image.toPNG();
-    if (png && png.length) clipboard.writeBuffer('image/png', png);
-  } catch (_) {}
   return !clipboard.readImage().isEmpty();
 }
 
