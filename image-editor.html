@@ -219,28 +219,32 @@
       overflow: auto;
       background: #1e3a8a;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
+      align-items: flex-start;
+      justify-content: center;
       padding: 20px;
       box-sizing: border-box;
       position: relative;
     }
 
+    .canvas-stage {
+      position: relative;
+      display: inline-block;
+      line-height: 0;
+    }
+
     .canvas-zoom-fab {
-      position: sticky;
-      top: 12px;
-      left: 12px;
-      z-index: 20;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 30;
       display: flex;
       align-items: center;
       gap: 6px;
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255,255,255,0.25);
       border-radius: 10px;
       padding: 6px 8px;
-      margin: 0 auto 12px 0;
-      align-self: flex-start;
+      pointer-events: auto;
     }
 
     .canvas-zoom-fab button {
@@ -476,13 +480,6 @@
       <span id="textSizeValue">24</span>
     </div>
 
-    <div class="thickness-control">
-      <span class="thickness-label">Zoom:</span>
-      <button class="tool-btn" id="zoomOutBtn" title="Zoom out">−</button>
-      <span id="zoomLabel" style="font-size:12px;min-width:44px;text-align:center;">100%</span>
-      <button class="tool-btn" id="zoomInBtn" title="Zoom in">+</button>
-    </div>
-
     <button class="tool-btn" id="undoBtn" title="Back (undo last step)" disabled>
       <i class="material-icons">undo</i>
     </button>
@@ -494,12 +491,14 @@
 
   <div class="main-content">
     <div class="canvas-container">
-      <div class="canvas-zoom-fab" id="canvasZoomFab">
-        <button type="button" id="zoomOutBtn2" title="Zoom out">−</button>
-        <span id="zoomLabel2">100%</span>
-        <button type="button" id="zoomInBtn2" title="Zoom in">+</button>
+      <div class="canvas-stage">
+        <canvas id="canvas"></canvas>
+        <div class="canvas-zoom-fab" id="canvasZoomFab">
+          <button type="button" id="zoomOutBtn" title="Zoom out">−</button>
+          <span id="zoomLabel">100%</span>
+          <button type="button" id="zoomInBtn" title="Zoom in">+</button>
+        </div>
       </div>
-      <canvas id="canvas"></canvas>
     </div>
   </div>
 
@@ -559,11 +558,8 @@
     function applyViewZoom() {
       canvas.style.width = Math.round(canvas.width * viewZoom) + 'px';
       canvas.style.height = Math.round(canvas.height * viewZoom) + 'px';
-      const text = Math.round(viewZoom * 100) + '%';
       const label = document.getElementById('zoomLabel');
-      const label2 = document.getElementById('zoomLabel2');
-      if (label) label.textContent = text;
-      if (label2) label2.textContent = text;
+      if (label) label.textContent = Math.round(viewZoom * 100) + '%';
     }
 
     function setViewZoom(next) {
@@ -571,12 +567,16 @@
       applyViewZoom();
     }
 
-    document.getElementById('zoomInBtn').addEventListener('click', () => setViewZoom(viewZoom * 1.25));
-    document.getElementById('zoomOutBtn').addEventListener('click', () => setViewZoom(viewZoom / 1.25));
-    const zoomIn2 = document.getElementById('zoomInBtn2');
-    const zoomOut2 = document.getElementById('zoomOutBtn2');
-    if (zoomIn2) zoomIn2.addEventListener('click', () => setViewZoom(viewZoom * 1.25));
-    if (zoomOut2) zoomOut2.addEventListener('click', () => setViewZoom(viewZoom / 1.25));
+    document.getElementById('zoomInBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setViewZoom(viewZoom * 1.25);
+    });
+    document.getElementById('zoomOutBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setViewZoom(viewZoom / 1.25);
+    });
     document.querySelector('.canvas-container').addEventListener('wheel', (e) => {
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
