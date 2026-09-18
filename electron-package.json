@@ -1,0 +1,11 @@
+{
+  "name": "tilbi",
+  "version": "1.0.5",
+  "description": "Tilbi clipboard manager",
+  "main": "index.js",
+  "publish": {
+    "provider": "github",
+    "owner": "Globinner",
+    "repo": "Tilbi"
+  }
+}

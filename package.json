@@ -1,31 +1,52 @@
 {
   "name": "tilbi",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "Tilbi clipboard manager",
   "main": "index.js",
   "scripts": {
     "start": "electron .",
+    "start:quiet": "node_modules\\electron\\dist\\electron.exe .",
     "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64 --dir --config.win.sign=false --config.win.target=dir --config.compression=store --config.asar=true && node embed-icon.js",
+    "sync-dist": "quick-sync.bat nopause",
+    "deploy": "deploy.bat",
+    "publish-release": "publish-release.bat nopause",
     "build-installer": "electron-builder --win --x64 --publish=never",
     "build-portable": "electron-builder --win --x64 --publish=never --config.win.target=portable",
     "publish": "electron-builder --win --x64 --publish=always",
     "selftest:win": "cross-env CM_SELFTEST=1 electron .",
-    "factory-reset": "cross-env CM_FACTORY_RESET=1 electron ."
+    "factory-reset": "cross-env CM_FACTORY_RESET=1 electron .",
+    "dev:web": "next dev",
+    "build:web": "next build",
+    "start:web": "next start"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
     "electron-updater": "^6.1.7",
-    "googleapis": "^128.0.0"
+    "framer-motion": "^11.15.0",
+    "googleapis": "^128.0.0",
+    "lucide-react": "^0.469.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
     "cross-env": "^7.0.3",
     "electron": "^28.0.0",
     "electron-builder": "^24.13.3",
-    "rcedit": "^5.0.2"
+    "postcss": "^8.4.49",
+    "rcedit": "^5.0.2",
+    "resedit": "^3.0.2",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
   },
   "build": {
     "appId": "com.tilbi.app",
     "productName": "Tilbi",
+    "afterPack": "polish-dist.js",
     "directories": {
       "output": "dist"
     },
@@ -38,7 +59,18 @@
       "!**/*.{md,txt,bat,iss,log}",
       "!**/.git/**/*",
       "!**/.vscode/**/*",
-      "!node_modules/.bin/**/*",
+      "!src/**/*",
+      "!next.config.mjs",
+      "!tailwind.config.ts",
+      "!postcss.config.mjs",
+      "!tsconfig.json",
+      "!next-env.d.ts",
+      "!.next/**/*",
+      "!node_modules/next/**/*",
+      "!node_modules/react/**/*",
+      "!node_modules/react-dom/**/*",
+      "!node_modules/framer-motion/**/*",
+      "!node_modules/lucide-react/**/*",
       "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
       "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
       "!node_modules/*.d.ts"
@@ -46,6 +78,7 @@
     "asar": true,
     "asarUnpack": [],
     "win": {
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
