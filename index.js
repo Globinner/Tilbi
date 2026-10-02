@@ -1037,6 +1037,7 @@ function createMainWindow(options = {}) {
       pinned: pinnedItems,
       screener: screenerItems
     });
+    mainWindow.webContents.send('saved-vaults', store.get('savedVaults') || { vaults: [], activeId: null });
     mainWindow.webContents.send('license-access', appAccess);
         } catch (error) {
           console.warn('Failed to send clipboard data to renderer:', error);
@@ -1357,6 +1358,10 @@ app.whenReady().then(() => {
   
   if (!store.has('pinnedItems')) {
     store.set('pinnedItems', []);
+  }
+
+  if (!store.has('savedVaults')) {
+    store.set('savedVaults', { vaults: [], activeId: null });
   }
 
   purgeStaleScreenerLoadingItems(0);
@@ -1693,6 +1698,20 @@ ipcMain.on('unpin-item', (event, text) => {
   }
 });
 
+ipcMain.on('save-saved-vaults', (event, state) => {
+  const next = (state && Array.isArray(state.vaults))
+    ? { vaults: state.vaults, activeId: state.activeId || null }
+    : { vaults: [], activeId: null };
+  store.set('savedVaults', next);
+});
+
+ipcMain.on('load-saved-vaults', (event) => {
+  const savedVaults = store.get('savedVaults') || { vaults: [], activeId: null };
+  if (event && event.sender) {
+    event.sender.send('saved-vaults', savedVaults);
+  }
+});
+
 ipcMain.on('delete-item', (event, text) => {
   // Remove from history
   let history = store.get('clipboardHistory') || [];
@@ -1729,12 +1748,18 @@ ipcMain.on('clear-all-history', (event) => {
 
 ipcMain.on('clear-all-pinned', (event) => {
   store.set('pinnedItems', []);
+  const savedVaults = store.get('savedVaults') || { vaults: [], activeId: null };
+  if (Array.isArray(savedVaults.vaults)) {
+    savedVaults.vaults.forEach((vault) => { vault.contents = []; });
+    store.set('savedVaults', savedVaults);
+  }
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('clipboard-data', {
       history: store.get('clipboardHistory') || [],
       pinned: [],
       screener: store.get('screenerItems') || []
     });
+    mainWindow.webContents.send('saved-vaults', savedVaults);
   }
 });
 

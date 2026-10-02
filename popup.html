@@ -5491,20 +5491,23 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     // Track current active tab
     let currentTab = 'history';
     let isSavedView = false;
+    function normalizeSavedVaultState(raw) {
+      if (!raw || !Array.isArray(raw.vaults)) return { vaults: [], activeId: null };
+      const vaults = raw.vaults.map((vault) => {
+        const fromEntries = Array.isArray(vault.entries) ? vault.entries.map((e) => e && e.value).filter(Boolean) : [];
+        const contents = Array.isArray(vault.contents) && vault.contents.length ? vault.contents : fromEntries;
+        return { id: vault.id, name: vault.name, contents: contents };
+      }).filter((v) => v && v.id && v.name);
+      const activeId = vaults.some((v) => v.id === raw.activeId) ? raw.activeId : (vaults[0] ? vaults[0].id : null);
+      return { vaults, activeId };
+    }
+
     let savedVaultAdding = false;
     let pendingPinContent = null;
     let pendingPinUi = null;
     let savedVaultState = (function loadSavedVaults() {
       try {
-        const raw = JSON.parse(localStorage.getItem('tilbi-saved-vaults-v1') || 'null');
-        if (raw && Array.isArray(raw.vaults)) {
-          const vaults = raw.vaults.map((vault) => {
-            const fromEntries = Array.isArray(vault.entries) ? vault.entries.map((e) => e && e.value).filter(Boolean) : [];
-            const contents = Array.isArray(vault.contents) && vault.contents.length ? vault.contents : fromEntries;
-            return { id: vault.id, name: vault.name, contents: contents };
-          });
-          return { vaults, activeId: raw.activeId || null };
-        }
+        return normalizeSavedVaultState(JSON.parse(localStorage.getItem('tilbi-saved-vaults-v1') || 'null'));
       } catch (_) {}
       return { vaults: [], activeId: null };
     })();
@@ -5513,6 +5516,21 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       try {
         localStorage.setItem('tilbi-saved-vaults-v1', JSON.stringify(savedVaultState));
       } catch (_) {}
+      try { ipcRenderer.send('save-saved-vaults', savedVaultState); } catch (_) {}
+    }
+
+    function applySavedVaultState(raw, fromStore) {
+      const next = normalizeSavedVaultState(raw);
+      if (fromStore && !next.vaults.length && savedVaultState.vaults.length) {
+        persistSavedVaults();
+        return;
+      }
+      savedVaultState = next;
+      try {
+        localStorage.setItem('tilbi-saved-vaults-v1', JSON.stringify(savedVaultState));
+      } catch (_) {}
+      if (typeof renderSavedVaults === 'function') renderSavedVaults();
+      if (typeof updateHistoryView === 'function') updateHistoryView();
     }
 
     function escapeVaultText(value) {
@@ -5658,8 +5676,6 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       html += '<button type="button" class="saved-vault-tab saved-vault-tab-plus" data-picker-action="new" title="New place">+</button>';
       if (savedVaultAdding) {
         html += '<input id="saved-vault-picker-input" type="text" maxlength="40" placeholder="e.g. google" autocomplete="off">';
-      } else {
-        html += '<button type="button" class="saved-vault-tab" data-picker-action="new">New</button>';
       }
       savedVaultState.vaults.forEach((vault) => {
         html += '<button type="button" class="saved-vault-tab" data-picker-vault="' + escapeVaultText(vault.id) + '">' + escapeVaultText(vault.name) + '</button>';
@@ -7929,6 +7945,11 @@ searchInput.disabled = true;
     // Debounced render to avoid jank on rapid updates
     const renderNow = () => renderClipboardItems();
     const debouncedRender = debounce(renderNow, 50);
+
+    ipcRenderer.on('saved-vaults', (event, data) => {
+      applySavedVaultState(data, true);
+    });
+    try { ipcRenderer.send('load-saved-vaults'); } catch (_) {}
 
     ipcRenderer.on('clipboard-data', (event, data) => {
       // console.log('Received clipboard data:', data);
