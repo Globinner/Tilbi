@@ -1632,80 +1632,40 @@
       font-weight: 700;
       padding: 4px 9px;
     }
-    #saved-vault-name-input {
-      flex-shrink: 0;
+    #saved-vault-picker {
+      display: none;
+      position: fixed;
+      z-index: 10050;
+      min-width: 180px;
+      max-width: 240px;
+      padding: 8px;
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      -webkit-app-region: no-drag;
+    }
+    #saved-vault-picker .saved-vault-picker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    #saved-vault-picker-input {
       width: 120px;
       padding: 5px 8px;
       border: 1px solid #ddd;
       border-radius: 4px;
       font-size: 12px;
     }
-    #saved-vault-body {
-      display: none;
-      padding: 8px 10px 12px 10px;
-      max-height: calc(100vh - 210px);
-      overflow-y: auto;
-    }
-    .saved-vault-add-row {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-    .saved-vault-add-row input {
-      flex: 1;
-      min-width: 90px;
-      padding: 6px 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 12px;
-      box-sizing: border-box;
-    }
-    .saved-vault-add-row button {
-      flex-shrink: 0;
-      padding: 6px 10px;
-      border: none;
-      border-radius: 4px;
-      background: var(--primary-color, #4a86e8);
-      color: #fff;
-      font-weight: 600;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .saved-vault-entry {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-      font-size: 12px;
-    }
-    .saved-vault-entry-label {
-      font-weight: 700;
-      min-width: 72px;
-      color: #334155;
-    }
-    .saved-vault-entry-value {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .saved-vault-entry button {
-      flex-shrink: 0;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      color: #4a86e8;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 4px;
-    }
     body.header-only #saved-vault-wrap,
+    body.header-only #saved-vault-picker,
     .loginner-active #saved-vault-wrap,
+    .loginner-active #saved-vault-picker,
     .screener-active #saved-vault-wrap,
-    .planner-active #saved-vault-wrap {
+    .screener-active #saved-vault-picker,
+    .planner-active #saved-vault-wrap,
+    .planner-active #saved-vault-picker {
       display: none !important;
     }
     
@@ -4309,8 +4269,8 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
 
   <div id="saved-vault-wrap">
     <div id="saved-vault-tabs"></div>
-    <div id="saved-vault-body"></div>
   </div>
+  <div id="saved-vault-picker"></div>
   
   <div id="history-tab" class="list-container active-tab">
     <!-- Clipboard history items will be inserted here -->
@@ -5532,11 +5492,18 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     let currentTab = 'history';
     let isSavedView = false;
     let savedVaultAdding = false;
+    let pendingPinContent = null;
+    let pendingPinUi = null;
     let savedVaultState = (function loadSavedVaults() {
       try {
         const raw = JSON.parse(localStorage.getItem('tilbi-saved-vaults-v1') || 'null');
         if (raw && Array.isArray(raw.vaults)) {
-          return { vaults: raw.vaults, activeId: raw.activeId || null };
+          const vaults = raw.vaults.map((vault) => {
+            const fromEntries = Array.isArray(vault.entries) ? vault.entries.map((e) => e && e.value).filter(Boolean) : [];
+            const contents = Array.isArray(vault.contents) && vault.contents.length ? vault.contents : fromEntries;
+            return { id: vault.id, name: vault.name, contents: contents };
+          });
+          return { vaults, activeId: raw.activeId || null };
         }
       } catch (_) {}
       return { vaults: [], activeId: null };
@@ -5556,22 +5523,58 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
         .replace(/"/g, '&quot;');
     }
 
+    function vaultItemKey(item) {
+      if (item == null) return '';
+      if (typeof item === 'string') return item;
+      try { return JSON.stringify(item); } catch (_) { return String(item); }
+    }
+
+    function vaultHasItem(vault, item) {
+      if (!vault) return false;
+      const key = vaultItemKey(item);
+      return (vault.contents || []).some((c) => vaultItemKey(c) === key);
+    }
+
+    function addItemToVault(vault, item) {
+      if (!vault) return;
+      if (!Array.isArray(vault.contents)) vault.contents = [];
+      if (!vaultHasItem(vault, item)) vault.contents.unshift(item);
+    }
+
+    function removeItemFromVaults(item) {
+      const key = vaultItemKey(item);
+      savedVaultState.vaults.forEach((vault) => {
+        vault.contents = (vault.contents || []).filter((c) => vaultItemKey(c) !== key);
+      });
+      persistSavedVaults();
+    }
+
     function getActiveSavedVault() {
       const id = savedVaultState.activeId;
       if (!id) return null;
       return savedVaultState.vaults.find((v) => v.id === id) || null;
     }
 
+    function refreshPinnedForVault() {
+      lastPinnedSig = '';
+      const searchEl = document.getElementById('search-input');
+      if (typeof renderClipboardItems === 'function') {
+        renderClipboardItems(searchEl ? searchEl.value.trim().toLowerCase() : '');
+      }
+    }
+
+    function hideSavedVaultPicker() {
+      const picker = document.getElementById('saved-vault-picker');
+      if (picker) picker.style.display = 'none';
+      savedVaultAdding = false;
+      pendingPinContent = null;
+      pendingPinUi = null;
+    }
+
     function renderSavedVaults() {
       const tabsEl = document.getElementById('saved-vault-tabs');
-      const bodyEl = document.getElementById('saved-vault-body');
-      if (!tabsEl || !bodyEl) return;
-
-      const active = getActiveSavedVault();
-      let tabsHtml = '<button type="button" class="saved-vault-tab saved-vault-tab-plus" data-vault-action="add" title="Add a place">+</button>';
-      if (savedVaultAdding) {
-        tabsHtml += '<input id="saved-vault-name-input" type="text" maxlength="40" placeholder="e.g. google" autocomplete="off">';
-      }
+      if (!tabsEl) return;
+      let tabsHtml = '';
       savedVaultState.vaults.forEach((vault) => {
         const isActive = vault.id === savedVaultState.activeId;
         tabsHtml += '<button type="button" class="saved-vault-tab' + (isActive ? ' active' : '') + '" data-vault-id="' + escapeVaultText(vault.id) + '">' +
@@ -5579,141 +5582,164 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           '<span data-vault-delete="' + escapeVaultText(vault.id) + '" title="Remove" style="margin-left:6px;opacity:0.85;">×</span></button>';
       });
       tabsEl.innerHTML = tabsHtml;
-
-      if (!active) {
-        bodyEl.style.display = 'none';
-        bodyEl.innerHTML = '';
-        return;
-      }
-
-      const entries = Array.isArray(active.entries) ? active.entries : [];
-      let bodyHtml = '<div class="saved-vault-add-row">' +
-        '<input id="saved-vault-label-input" type="text" placeholder="Email / password / note" maxlength="80" autocomplete="off">' +
-        '<input id="saved-vault-value-input" type="text" placeholder="Value" maxlength="400" autocomplete="off">' +
-        '<button type="button" data-vault-action="save-entry">Save</button>' +
-        '</div>';
-      if (!entries.length) {
-        bodyHtml += '<div style="font-size:12px;color:#64748b;padding:8px 2px;">Save emails, passwords, and notes for ' + escapeVaultText(active.name) + '.</div>';
-      }
-      entries.forEach((entry) => {
-        const isSecret = /pass|pin|token|secret|key/i.test(entry.label || '');
-        const shown = isSecret ? '••••••••' : escapeVaultText(entry.value);
-        bodyHtml += '<div class="saved-vault-entry" data-entry-id="' + escapeVaultText(entry.id) + '">' +
-          '<span class="saved-vault-entry-label">' + escapeVaultText(entry.label || 'Item') + '</span>' +
-          '<span class="saved-vault-entry-value">' + shown + '</span>' +
-          '<button type="button" data-vault-copy="' + escapeVaultText(entry.id) + '">Copy</button>' +
-          '<button type="button" data-vault-remove="' + escapeVaultText(entry.id) + '">Delete</button>' +
-          '</div>';
-      });
-      bodyEl.innerHTML = bodyHtml;
-      bodyEl.style.display = 'block';
     }
 
-    function finishNewSavedVault() {
-      const input = document.getElementById('saved-vault-name-input');
-      const name = ((input && input.value) || '').trim();
-      savedVaultAdding = false;
-      if (name) {
-        const id = 'v' + Date.now();
-        savedVaultState.vaults.push({ id, name, entries: [] });
-        savedVaultState.activeId = id;
-        persistSavedVaults();
+    function pinContentToVault(vault) {
+      const content = pendingPinContent;
+      const ui = pendingPinUi;
+      if (!vault || content == null) {
+        hideSavedVaultPicker();
+        return;
+      }
+      addItemToVault(vault, content);
+      savedVaultState.activeId = vault.id;
+      persistSavedVaults();
+      hideSavedVaultPicker();
+      try { ipcRenderer.send('pin-item', content); } catch (_) {}
+      if (ui && ui.pinBtn) {
+        ui.pinBtn.classList.add('pinned');
+        ui.pinBtn.innerHTML = '<i class="material-icons">push_pin</i>';
+        if (ui.t) ui.pinBtn.title = ui.t.unpin;
       }
       renderSavedVaults();
-      updateHistoryView();
+      if (typeof updateHistoryView === 'function') updateHistoryView();
+      refreshPinnedForVault();
+    }
+
+    function createVaultAndPin(name) {
+      const trimmed = (name || '').trim();
+      if (!trimmed || pendingPinContent == null) return;
+      const existing = savedVaultState.vaults.find((v) => String(v.name).toLowerCase() === trimmed.toLowerCase());
+      if (existing) {
+        pinContentToVault(existing);
+        return;
+      }
+      const vault = { id: 'v' + Date.now(), name: trimmed, contents: [] };
+      savedVaultState.vaults.push(vault);
+      pinContentToVault(vault);
+    }
+
+    function renderSavedVaultPicker() {
+      const picker = document.getElementById('saved-vault-picker');
+      if (!picker) return;
+      let html = '<div class="saved-vault-picker-row">';
+      html += '<button type="button" class="saved-vault-tab saved-vault-tab-plus" data-picker-action="new" title="New place">+</button>';
+      if (savedVaultAdding) {
+        html += '<input id="saved-vault-picker-input" type="text" maxlength="40" placeholder="e.g. google" autocomplete="off">';
+      } else {
+        html += '<button type="button" class="saved-vault-tab" data-picker-action="new">New</button>';
+      }
+      savedVaultState.vaults.forEach((vault) => {
+        html += '<button type="button" class="saved-vault-tab" data-picker-vault="' + escapeVaultText(vault.id) + '">' + escapeVaultText(vault.name) + '</button>';
+      });
+      html += '</div>';
+      picker.innerHTML = html;
+    }
+
+    function positionSavedVaultPicker(anchor) {
+      const picker = document.getElementById('saved-vault-picker');
+      if (!picker || !anchor) return;
+      picker.style.display = 'block';
+      const r = anchor.getBoundingClientRect();
+      const pw = picker.offsetWidth || 200;
+      const ph = picker.offsetHeight || 80;
+      let left = r.right - pw;
+      let top = r.bottom + 4;
+      if (left < 8) left = 8;
+      if (left + pw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - pw - 8);
+      if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 4);
+      picker.style.left = left + 'px';
+      picker.style.top = top + 'px';
+    }
+
+    function openSavedVaultPicker(content, pinBtn, t) {
+      pendingPinContent = content;
+      pendingPinUi = { pinBtn, t };
+      savedVaultAdding = savedVaultState.vaults.length === 0;
+      renderSavedVaultPicker();
+      positionSavedVaultPicker(pinBtn);
+      const input = document.getElementById('saved-vault-picker-input');
+      if (input) input.focus();
     }
 
     function bindSavedVaultUi() {
       const wrap = document.getElementById('saved-vault-wrap');
-      if (!wrap || wrap.dataset.bound === '1') return;
-      wrap.dataset.bound = '1';
-      wrap.addEventListener('click', (e) => {
-        const del = e.target.closest('[data-vault-delete]');
-        if (del) {
-          e.preventDefault();
-          e.stopPropagation();
-          const id = del.getAttribute('data-vault-delete');
-          savedVaultState.vaults = savedVaultState.vaults.filter((v) => v.id !== id);
-          if (savedVaultState.activeId === id) savedVaultState.activeId = null;
-          persistSavedVaults();
-          renderSavedVaults();
-          updateHistoryView();
-          return;
-        }
-        const addBtn = e.target.closest('[data-vault-action="add"]');
-        if (addBtn) {
-          savedVaultAdding = true;
-          renderSavedVaults();
-          const input = document.getElementById('saved-vault-name-input');
-          if (input) input.focus();
-          return;
-        }
-        const tab = e.target.closest('.saved-vault-tab[data-vault-id]');
-        if (tab) {
-          savedVaultAdding = false;
-          savedVaultState.activeId = tab.getAttribute('data-vault-id');
-          persistSavedVaults();
-          renderSavedVaults();
-          updateHistoryView();
-          return;
-        }
-        if (e.target.closest('[data-vault-action="save-entry"]')) {
-          const vault = getActiveSavedVault();
-          if (!vault) return;
-          const labelEl = document.getElementById('saved-vault-label-input');
-          const valueEl = document.getElementById('saved-vault-value-input');
-          const label = ((labelEl && labelEl.value) || '').trim() || 'Item';
-          const value = ((valueEl && valueEl.value) || '').trim();
-          if (!value) return;
-          if (!Array.isArray(vault.entries)) vault.entries = [];
-          vault.entries.push({ id: 'e' + Date.now(), label, value });
-          persistSavedVaults();
-          renderSavedVaults();
-          return;
-        }
-        const copyBtn = e.target.closest('[data-vault-copy]');
-        if (copyBtn) {
-          const vault = getActiveSavedVault();
-          const entry = vault && (vault.entries || []).find((x) => x.id === copyBtn.getAttribute('data-vault-copy'));
-          if (entry && entry.value) {
-            try { ipcRenderer.send('copy-to-clipboard', entry.value); } catch (_) {}
-            try { navigator.clipboard.writeText(entry.value); } catch (_) {}
+      if (wrap && wrap.dataset.bound !== '1') {
+        wrap.dataset.bound = '1';
+        wrap.addEventListener('click', (e) => {
+          const del = e.target.closest('[data-vault-delete]');
+          if (del) {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = del.getAttribute('data-vault-delete');
+            savedVaultState.vaults = savedVaultState.vaults.filter((v) => v.id !== id);
+            if (savedVaultState.activeId === id) savedVaultState.activeId = null;
+            persistSavedVaults();
+            renderSavedVaults();
+            if (typeof updateHistoryView === 'function') updateHistoryView();
+            refreshPinnedForVault();
+            return;
           }
-          return;
-        }
-        const removeBtn = e.target.closest('[data-vault-remove]');
-        if (removeBtn) {
-          const vault = getActiveSavedVault();
-          if (!vault) return;
-          vault.entries = (vault.entries || []).filter((x) => x.id !== removeBtn.getAttribute('data-vault-remove'));
-          persistSavedVaults();
-          renderSavedVaults();
-        }
-      });
-      wrap.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter') return;
-        if (e.target && e.target.id === 'saved-vault-name-input') {
+          const tab = e.target.closest('.saved-vault-tab[data-vault-id]');
+          if (tab) {
+            const id = tab.getAttribute('data-vault-id');
+            savedVaultState.activeId = savedVaultState.activeId === id ? null : id;
+            persistSavedVaults();
+            renderSavedVaults();
+            refreshPinnedForVault();
+          }
+        });
+      }
+
+      const picker = document.getElementById('saved-vault-picker');
+      if (picker && picker.dataset.bound !== '1') {
+        picker.dataset.bound = '1';
+        picker.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const existing = e.target.closest('[data-picker-vault]');
+          if (existing) {
+            const vault = savedVaultState.vaults.find((v) => v.id === existing.getAttribute('data-picker-vault'));
+            pinContentToVault(vault);
+            return;
+          }
+          if (e.target.closest('[data-picker-action="new"]')) {
+            savedVaultAdding = true;
+            renderSavedVaultPicker();
+            positionSavedVaultPicker(pendingPinUi && pendingPinUi.pinBtn);
+            const input = document.getElementById('saved-vault-picker-input');
+            if (input) input.focus();
+          }
+        });
+        picker.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' || !e.target || e.target.id !== 'saved-vault-picker-input') return;
           e.preventDefault();
-          finishNewSavedVault();
-        } else if (e.target && (e.target.id === 'saved-vault-label-input' || e.target.id === 'saved-vault-value-input')) {
-          e.preventDefault();
-          const saveBtn = wrap.querySelector('[data-vault-action="save-entry"]');
-          if (saveBtn) saveBtn.click();
-        }
-      });
+          createVaultAndPin(e.target.value);
+        });
+      }
+
+      if (!document.body.dataset.vaultPickerBound) {
+        document.body.dataset.vaultPickerBound = '1';
+        document.addEventListener('click', (e) => {
+          const pickerEl = document.getElementById('saved-vault-picker');
+          if (!pickerEl || pickerEl.style.display === 'none' || !pickerEl.style.display) return;
+          if (pickerEl.contains(e.target)) return;
+          if (e.target.closest && e.target.closest('.pin-btn')) return;
+          hideSavedVaultPicker();
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') hideSavedVaultPicker();
+        });
+      }
     }
 
     function syncSavedVaultVisibility() {
       const wrap = document.getElementById('saved-vault-wrap');
       if (!wrap) return;
-      const show = currentTab === 'history' && isSavedView;
+      bindSavedVaultUi();
+      const show = currentTab === 'history' && isSavedView && savedVaultState.vaults.length > 0;
       wrap.style.display = show ? 'block' : 'none';
-      if (show) {
-        bindSavedVaultUi();
-        renderSavedVaults();
-      } else {
-        savedVaultAdding = false;
-      }
+      if (show) renderSavedVaults();
+      if (currentTab !== 'history') hideSavedVaultPicker();
     }
     // Prevent immediate override back to history after we intentionally switch to screener
     let navigationLockUntil = 0;
@@ -6731,8 +6757,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
         historyTab.style.display = showHistory ? 'block' : 'none';
       }
       if (pinnedTab) {
-        const vaultOpen = !!(savedVaultState && savedVaultState.activeId);
-        pinnedTab.style.display = (showSaved && !vaultOpen) ? 'block' : 'none';
+        pinnedTab.style.display = showSaved ? 'block' : 'none';
       }
       if (typeof syncSavedVaultVisibility === 'function') syncSavedVaultVisibility();
       if (plannerTab) {
@@ -7325,6 +7350,10 @@ searchInput.disabled = true;
       }
 
       let filteredPinned = clipboardData.pinned || [];
+      const activeVault = (typeof getActiveSavedVault === 'function') ? getActiveSavedVault() : null;
+      if (isSavedView && activeVault) {
+        filteredPinned = filteredPinned.filter((item) => vaultHasItem(activeVault, item));
+      }
       if (searchTerm) {
         filteredPinned = filteredPinned.filter(item => {
           if (typeof item === 'string' && item.startsWith('data:image/')) return true;
@@ -7644,17 +7673,21 @@ searchInput.disabled = true;
           }, 500);
           
           if (isPinned) {
-            console.log('Unpinning item:', content.substring(0, 20) + '...');
+            if (typeof removeItemFromVaults === 'function') removeItemFromVaults(content);
             ipcRenderer.send('unpin-item', content);
             pinBtn.classList.remove('pinned');
             pinBtn.innerHTML = '<i class="material-icons">push_pin</i>';
             pinBtn.title = t.pin;
           } else {
-            console.log('Pinning item:', content.substring(0, 20) + '...');
-            ipcRenderer.send('pin-item', content);
-            pinBtn.classList.add('pinned');
-            pinBtn.innerHTML = '<i class="material-icons">push_pin</i>';
-            pinBtn.title = t.unpin;
+            if (typeof bindSavedVaultUi === 'function') bindSavedVaultUi();
+            if (typeof openSavedVaultPicker === 'function') {
+              openSavedVaultPicker(content, pinBtn, t);
+            } else {
+              ipcRenderer.send('pin-item', content);
+              pinBtn.classList.add('pinned');
+              pinBtn.innerHTML = '<i class="material-icons">push_pin</i>';
+              pinBtn.title = t.unpin;
+            }
           }
         });
       }
@@ -7673,6 +7706,7 @@ searchInput.disabled = true;
               ipcRenderer.send('delete-screener-item', content);
             } else {
               if (isPinned) {
+                if (typeof removeItemFromVaults === 'function') removeItemFromVaults(content);
                 ipcRenderer.send('unpin-item', content);
               }
               ipcRenderer.send('delete-item', content);
