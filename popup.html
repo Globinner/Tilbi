@@ -1284,6 +1284,7 @@
     /* Hide all non-header UI when collapsed */
     body.header-only .tabs,
     body.header-only .search-bar,
+    body.header-only #saved-vault-wrap,
     body.header-only .list-container,
     body.header-only .footer,
     /* Hide all Loginner modals/overlays as well */
@@ -1592,6 +1593,120 @@
     .search-bar .saved-toggle-btn:focus-visible {
       outline: none;
       box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18);
+    }
+
+    #saved-vault-wrap {
+      display: none;
+      -webkit-app-region: no-drag;
+      background: transparent;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    #saved-vault-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px 8px 8px;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+    }
+    #saved-vault-tabs::-webkit-scrollbar { display: none; }
+    .saved-vault-tab {
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: var(--primary-color, #4a86e8);
+      color: #fff;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .saved-vault-tab.active {
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.18);
+      filter: brightness(0.88);
+    }
+    .saved-vault-tab-plus {
+      min-width: 28px;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 4px 9px;
+    }
+    #saved-vault-name-input {
+      flex-shrink: 0;
+      width: 120px;
+      padding: 5px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    #saved-vault-body {
+      display: none;
+      padding: 8px 10px 12px 10px;
+      max-height: calc(100vh - 210px);
+      overflow-y: auto;
+    }
+    .saved-vault-add-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .saved-vault-add-row input {
+      flex: 1;
+      min-width: 90px;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+    .saved-vault-add-row button {
+      flex-shrink: 0;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      background: var(--primary-color, #4a86e8);
+      color: #fff;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .saved-vault-entry {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      font-size: 12px;
+    }
+    .saved-vault-entry-label {
+      font-weight: 700;
+      min-width: 72px;
+      color: #334155;
+    }
+    .saved-vault-entry-value {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .saved-vault-entry button {
+      flex-shrink: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: #4a86e8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 4px;
+    }
+    body.header-only #saved-vault-wrap,
+    .loginner-active #saved-vault-wrap,
+    .screener-active #saved-vault-wrap,
+    .planner-active #saved-vault-wrap {
+      display: none !important;
     }
     
     .search-bar .clear-btn {
@@ -4191,6 +4306,11 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     <input type="text" id="search-input" placeholder="Search clipboard items...">
     <button id="clear-current-btn" class="clear-btn">Clear All</button>
   </div>
+
+  <div id="saved-vault-wrap">
+    <div id="saved-vault-tabs"></div>
+    <div id="saved-vault-body"></div>
+  </div>
   
   <div id="history-tab" class="list-container active-tab">
     <!-- Clipboard history items will be inserted here -->
@@ -5411,6 +5531,190 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     // Track current active tab
     let currentTab = 'history';
     let isSavedView = false;
+    let savedVaultAdding = false;
+    let savedVaultState = (function loadSavedVaults() {
+      try {
+        const raw = JSON.parse(localStorage.getItem('tilbi-saved-vaults-v1') || 'null');
+        if (raw && Array.isArray(raw.vaults)) {
+          return { vaults: raw.vaults, activeId: raw.activeId || null };
+        }
+      } catch (_) {}
+      return { vaults: [], activeId: null };
+    })();
+
+    function persistSavedVaults() {
+      try {
+        localStorage.setItem('tilbi-saved-vaults-v1', JSON.stringify(savedVaultState));
+      } catch (_) {}
+    }
+
+    function escapeVaultText(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function getActiveSavedVault() {
+      const id = savedVaultState.activeId;
+      if (!id) return null;
+      return savedVaultState.vaults.find((v) => v.id === id) || null;
+    }
+
+    function renderSavedVaults() {
+      const tabsEl = document.getElementById('saved-vault-tabs');
+      const bodyEl = document.getElementById('saved-vault-body');
+      if (!tabsEl || !bodyEl) return;
+
+      const active = getActiveSavedVault();
+      let tabsHtml = '<button type="button" class="saved-vault-tab saved-vault-tab-plus" data-vault-action="add" title="Add a place">+</button>';
+      if (savedVaultAdding) {
+        tabsHtml += '<input id="saved-vault-name-input" type="text" maxlength="40" placeholder="e.g. google" autocomplete="off">';
+      }
+      savedVaultState.vaults.forEach((vault) => {
+        const isActive = vault.id === savedVaultState.activeId;
+        tabsHtml += '<button type="button" class="saved-vault-tab' + (isActive ? ' active' : '') + '" data-vault-id="' + escapeVaultText(vault.id) + '">' +
+          escapeVaultText(vault.name) +
+          '<span data-vault-delete="' + escapeVaultText(vault.id) + '" title="Remove" style="margin-left:6px;opacity:0.85;">×</span></button>';
+      });
+      tabsEl.innerHTML = tabsHtml;
+
+      if (!active) {
+        bodyEl.style.display = 'none';
+        bodyEl.innerHTML = '';
+        return;
+      }
+
+      const entries = Array.isArray(active.entries) ? active.entries : [];
+      let bodyHtml = '<div class="saved-vault-add-row">' +
+        '<input id="saved-vault-label-input" type="text" placeholder="Email / password / note" maxlength="80" autocomplete="off">' +
+        '<input id="saved-vault-value-input" type="text" placeholder="Value" maxlength="400" autocomplete="off">' +
+        '<button type="button" data-vault-action="save-entry">Save</button>' +
+        '</div>';
+      if (!entries.length) {
+        bodyHtml += '<div style="font-size:12px;color:#64748b;padding:8px 2px;">Save emails, passwords, and notes for ' + escapeVaultText(active.name) + '.</div>';
+      }
+      entries.forEach((entry) => {
+        const isSecret = /pass|pin|token|secret|key/i.test(entry.label || '');
+        const shown = isSecret ? '••••••••' : escapeVaultText(entry.value);
+        bodyHtml += '<div class="saved-vault-entry" data-entry-id="' + escapeVaultText(entry.id) + '">' +
+          '<span class="saved-vault-entry-label">' + escapeVaultText(entry.label || 'Item') + '</span>' +
+          '<span class="saved-vault-entry-value">' + shown + '</span>' +
+          '<button type="button" data-vault-copy="' + escapeVaultText(entry.id) + '">Copy</button>' +
+          '<button type="button" data-vault-remove="' + escapeVaultText(entry.id) + '">Delete</button>' +
+          '</div>';
+      });
+      bodyEl.innerHTML = bodyHtml;
+      bodyEl.style.display = 'block';
+    }
+
+    function finishNewSavedVault() {
+      const input = document.getElementById('saved-vault-name-input');
+      const name = ((input && input.value) || '').trim();
+      savedVaultAdding = false;
+      if (name) {
+        const id = 'v' + Date.now();
+        savedVaultState.vaults.push({ id, name, entries: [] });
+        savedVaultState.activeId = id;
+        persistSavedVaults();
+      }
+      renderSavedVaults();
+      updateHistoryView();
+    }
+
+    function bindSavedVaultUi() {
+      const wrap = document.getElementById('saved-vault-wrap');
+      if (!wrap || wrap.dataset.bound === '1') return;
+      wrap.dataset.bound = '1';
+      wrap.addEventListener('click', (e) => {
+        const del = e.target.closest('[data-vault-delete]');
+        if (del) {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = del.getAttribute('data-vault-delete');
+          savedVaultState.vaults = savedVaultState.vaults.filter((v) => v.id !== id);
+          if (savedVaultState.activeId === id) savedVaultState.activeId = null;
+          persistSavedVaults();
+          renderSavedVaults();
+          updateHistoryView();
+          return;
+        }
+        const addBtn = e.target.closest('[data-vault-action="add"]');
+        if (addBtn) {
+          savedVaultAdding = true;
+          renderSavedVaults();
+          const input = document.getElementById('saved-vault-name-input');
+          if (input) input.focus();
+          return;
+        }
+        const tab = e.target.closest('.saved-vault-tab[data-vault-id]');
+        if (tab) {
+          savedVaultAdding = false;
+          savedVaultState.activeId = tab.getAttribute('data-vault-id');
+          persistSavedVaults();
+          renderSavedVaults();
+          updateHistoryView();
+          return;
+        }
+        if (e.target.closest('[data-vault-action="save-entry"]')) {
+          const vault = getActiveSavedVault();
+          if (!vault) return;
+          const labelEl = document.getElementById('saved-vault-label-input');
+          const valueEl = document.getElementById('saved-vault-value-input');
+          const label = ((labelEl && labelEl.value) || '').trim() || 'Item';
+          const value = ((valueEl && valueEl.value) || '').trim();
+          if (!value) return;
+          if (!Array.isArray(vault.entries)) vault.entries = [];
+          vault.entries.push({ id: 'e' + Date.now(), label, value });
+          persistSavedVaults();
+          renderSavedVaults();
+          return;
+        }
+        const copyBtn = e.target.closest('[data-vault-copy]');
+        if (copyBtn) {
+          const vault = getActiveSavedVault();
+          const entry = vault && (vault.entries || []).find((x) => x.id === copyBtn.getAttribute('data-vault-copy'));
+          if (entry && entry.value) {
+            try { ipcRenderer.send('copy-to-clipboard', entry.value); } catch (_) {}
+            try { navigator.clipboard.writeText(entry.value); } catch (_) {}
+          }
+          return;
+        }
+        const removeBtn = e.target.closest('[data-vault-remove]');
+        if (removeBtn) {
+          const vault = getActiveSavedVault();
+          if (!vault) return;
+          vault.entries = (vault.entries || []).filter((x) => x.id !== removeBtn.getAttribute('data-vault-remove'));
+          persistSavedVaults();
+          renderSavedVaults();
+        }
+      });
+      wrap.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        if (e.target && e.target.id === 'saved-vault-name-input') {
+          e.preventDefault();
+          finishNewSavedVault();
+        } else if (e.target && (e.target.id === 'saved-vault-label-input' || e.target.id === 'saved-vault-value-input')) {
+          e.preventDefault();
+          const saveBtn = wrap.querySelector('[data-vault-action="save-entry"]');
+          if (saveBtn) saveBtn.click();
+        }
+      });
+    }
+
+    function syncSavedVaultVisibility() {
+      const wrap = document.getElementById('saved-vault-wrap');
+      if (!wrap) return;
+      const show = currentTab === 'history' && isSavedView;
+      wrap.style.display = show ? 'block' : 'none';
+      if (show) {
+        bindSavedVaultUi();
+        renderSavedVaults();
+      } else {
+        savedVaultAdding = false;
+      }
+    }
     // Prevent immediate override back to history after we intentionally switch to screener
     let navigationLockUntil = 0;
     let plannerInitialized = false;
@@ -6427,8 +6731,10 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
         historyTab.style.display = showHistory ? 'block' : 'none';
       }
       if (pinnedTab) {
-        pinnedTab.style.display = showSaved ? 'block' : 'none';
+        const vaultOpen = !!(savedVaultState && savedVaultState.activeId);
+        pinnedTab.style.display = (showSaved && !vaultOpen) ? 'block' : 'none';
       }
+      if (typeof syncSavedVaultVisibility === 'function') syncSavedVaultVisibility();
       if (plannerTab) {
         plannerTab.style.display = currentTab === 'planner' ? 'block' : 'none';
       }
