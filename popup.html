@@ -1623,8 +1623,8 @@
       line-height: 1.2;
     }
     .saved-vault-tab.active {
-      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.18);
-      filter: brightness(0.88);
+      box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(0, 0, 0, 0.28);
+      filter: brightness(0.72);
     }
     .saved-vault-tab-plus {
       min-width: 28px;
@@ -5555,6 +5555,38 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       return savedVaultState.vaults.find((v) => v.id === id) || null;
     }
 
+    function itemInAnyVault(item) {
+      return savedVaultState.vaults.some((vault) => vaultHasItem(vault, item));
+    }
+
+    function ensureActiveVault() {
+      if (!savedVaultState.vaults.length) {
+        if (savedVaultState.activeId) {
+          savedVaultState.activeId = null;
+          persistSavedVaults();
+        }
+        return null;
+      }
+      let vault = getActiveSavedVault();
+      if (!vault) {
+        vault = savedVaultState.vaults[0];
+        savedVaultState.activeId = vault.id;
+        persistSavedVaults();
+      }
+      return vault;
+    }
+
+    function itemsForActiveVault() {
+      const vault = ensureActiveVault();
+      if (!vault) return clipboardData.pinned || [];
+      const pinned = clipboardData.pinned || [];
+      return (vault.contents || []).map((stored) => {
+        const key = vaultItemKey(stored);
+        const live = pinned.find((p) => vaultItemKey(p) === key);
+        return live != null ? live : stored;
+      });
+    }
+
     function refreshPinnedForVault() {
       lastPinnedSig = '';
       const searchEl = document.getElementById('search-input');
@@ -5674,6 +5706,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             const id = del.getAttribute('data-vault-delete');
             savedVaultState.vaults = savedVaultState.vaults.filter((v) => v.id !== id);
             if (savedVaultState.activeId === id) savedVaultState.activeId = null;
+            ensureActiveVault();
             persistSavedVaults();
             renderSavedVaults();
             if (typeof updateHistoryView === 'function') updateHistoryView();
@@ -5682,8 +5715,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
           }
           const tab = e.target.closest('.saved-vault-tab[data-vault-id]');
           if (tab) {
-            const id = tab.getAttribute('data-vault-id');
-            savedVaultState.activeId = savedVaultState.activeId === id ? null : id;
+            savedVaultState.activeId = tab.getAttribute('data-vault-id');
             persistSavedVaults();
             renderSavedVaults();
             refreshPinnedForVault();
@@ -5738,7 +5770,10 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       bindSavedVaultUi();
       const show = currentTab === 'history' && isSavedView && savedVaultState.vaults.length > 0;
       wrap.style.display = show ? 'block' : 'none';
-      if (show) renderSavedVaults();
+      if (show) {
+        ensureActiveVault();
+        renderSavedVaults();
+      }
       if (currentTab !== 'history') hideSavedVaultPicker();
     }
     // Prevent immediate override back to history after we intentionally switch to screener
@@ -6760,6 +6795,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
         pinnedTab.style.display = showSaved ? 'block' : 'none';
       }
       if (typeof syncSavedVaultVisibility === 'function') syncSavedVaultVisibility();
+      if (showSaved && typeof refreshPinnedForVault === 'function') refreshPinnedForVault();
       if (plannerTab) {
         plannerTab.style.display = currentTab === 'planner' ? 'block' : 'none';
       }
@@ -7350,9 +7386,11 @@ searchInput.disabled = true;
       }
 
       let filteredPinned = clipboardData.pinned || [];
-      const activeVault = (typeof getActiveSavedVault === 'function') ? getActiveSavedVault() : null;
-      if (isSavedView && activeVault) {
-        filteredPinned = filteredPinned.filter((item) => vaultHasItem(activeVault, item));
+      let pinnedEmptyText = 'No pinned items found';
+      if (isSavedView && savedVaultState.vaults.length) {
+        const vault = ensureActiveVault();
+        filteredPinned = itemsForActiveVault();
+        pinnedEmptyText = vault ? ('No items saved to ' + vault.name) : pinnedEmptyText;
       }
       if (searchTerm) {
         filteredPinned = filteredPinned.filter(item => {
@@ -7360,10 +7398,10 @@ searchInput.disabled = true;
           return String(item).toLowerCase().includes(searchTerm);
         });
       }
-      const pinnedSig = listSignature(filteredPinned);
+      const pinnedSig = (isSavedView && savedVaultState.activeId ? savedVaultState.activeId : 'all') + '|' + listSignature(filteredPinned);
       if (searchTerm || pinnedSig !== lastPinnedSig) {
         lastPinnedSig = pinnedSig;
-        fillList(pinnedTab, filteredPinned, (item) => createClipItem(item, true), 'No pinned items found');
+        fillList(pinnedTab, filteredPinned, (item) => createClipItem(item, true), pinnedEmptyText);
       }
 
       let filteredScreener = clipboardData.screener || [];
@@ -7672,7 +7710,8 @@ searchInput.disabled = true;
             item.classList.remove('copied');
           }, 500);
           
-          if (isPinned) {
+          const inVault = typeof itemInAnyVault === 'function' && itemInAnyVault(content);
+          if (isPinned && inVault) {
             if (typeof removeItemFromVaults === 'function') removeItemFromVaults(content);
             ipcRenderer.send('unpin-item', content);
             pinBtn.classList.remove('pinned');

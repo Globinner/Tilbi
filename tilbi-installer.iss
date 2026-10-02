@@ -3,7 +3,7 @@
 ; REQUIRED: Run 'npm run build' first to create dist\win-unpacked\
 
 #define MyAppName "Tilbi"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.8"
 #define MyAppPublisher "Globinner"
 #define MyAppURL "https://www.globinner.com"
 #define MyAppExeName "Tilbi.exe"
