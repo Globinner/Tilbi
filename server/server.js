@@ -5,6 +5,7 @@ const { authenticateToken, registerUser, loginUser } = require('./auth');
 const { dbHelpers } = require('./database');
 const stripeHelpers = require('./stripe');
 const paypalHelpers = require('./paypal');
+const couponHelpers = require('./coupons');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { body, validationResult } = require('express-validator');
 
@@ -24,6 +25,15 @@ function subscriptionResponse(subscription) {
     stripeSubscriptionId: subscription.stripe_subscription_id || null,
     paypalSubscriptionId: subscription.paypal_subscription_id || null,
   };
+}
+
+function requireCouponAdmin(req, res, next) {
+  const secret = process.env.COUPON_ADMIN_SECRET;
+  const provided = req.headers['x-admin-secret'];
+  if (!secret || !provided || provided !== secret) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
 }
 
 // Stripe webhooks need raw body — register before JSON parser
@@ -162,7 +172,8 @@ app.get('/api/subscription', authenticateToken, async (req, res) => {
       return res.json({ subscription: null });
     }
 
-    if ((subscription.payment_provider || 'stripe') === 'stripe' && subscription.stripe_subscription_id) {
+    const provider = subscription.payment_provider || 'stripe';
+    if (provider === 'stripe' && subscription.stripe_subscription_id) {
       await stripeHelpers.getSubscription(subscription.stripe_subscription_id);
     }
 
@@ -237,7 +248,14 @@ app.post('/api/subscription/cancel', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'No active subscription found' });
     }
 
-    if ((subscription.payment_provider || 'stripe') === 'paypal') {
+    const provider = subscription.payment_provider || 'stripe';
+    if (provider === 'coupon') {
+      return res.json({
+        success: true,
+        message: 'Coupon access does not renew. It stays active until the current period ends.',
+      });
+    }
+    if (provider === 'paypal') {
       await paypalHelpers.cancelSubscription(subscription.paypal_subscription_id);
     } else {
       await stripeHelpers.cancelSubscription(
@@ -260,7 +278,11 @@ app.post('/api/subscription/resume', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'No subscription found' });
     }
 
-    if ((subscription.payment_provider || 'stripe') === 'paypal') {
+    const provider = subscription.payment_provider || 'stripe';
+    if (provider === 'coupon') {
+      return res.status(400).json({ error: 'Coupon plans do not auto-renew, so resume is not available.' });
+    }
+    if (provider === 'paypal') {
       await paypalHelpers.activateSubscription(subscription.paypal_subscription_id);
     } else {
       await stripeHelpers.resumeSubscription(subscription.stripe_subscription_id);
@@ -280,7 +302,11 @@ app.post('/api/subscription/billing-portal', authenticateToken, async (req, res)
       return res.status(404).json({ error: 'No active subscription found' });
     }
 
-    if ((subscription.payment_provider || 'stripe') === 'paypal') {
+    const provider = subscription.payment_provider || 'stripe';
+    if (provider === 'coupon') {
+      return res.status(400).json({ error: 'Coupon plans have no billing portal.' });
+    }
+    if (provider === 'paypal') {
       return res.json({
         url: 'https://www.paypal.com/myaccount/autopay/',
         provider: 'paypal',
@@ -321,6 +347,61 @@ app.post('/api/subscription/paypal/confirm', authenticateToken, async (req, res)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// COUPON ROUTES
+// ============================================================================
+
+app.post('/api/coupon/redeem', authenticateToken, async (req, res) => {
+  try {
+    const code = req.body && req.body.code;
+    if (!code) {
+      return res.status(400).json({ error: 'Coupon code required' });
+    }
+
+    const redeemed = await couponHelpers.redeemCoupon(req.userId, code);
+    const subscription = await dbHelpers.getActiveSubscription(req.userId);
+
+    res.json({
+      success: true,
+      message: redeemed.stacked
+        ? `Coupon applied. Added ${redeemed.label} to your current access.`
+        : `Coupon redeemed. You now have ${redeemed.label} of Tilbi.`,
+      coupon: redeemed,
+      subscription: subscription ? subscriptionResponse(subscription) : null,
+    });
+  } catch (error) {
+    const message = error.message || 'Could not redeem coupon';
+    const status = /not found|already|expired|Invalid coupon|paid subscription/i.test(message) ? 400 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+
+app.get('/api/admin/coupons', requireCouponAdmin, async (req, res) => {
+  try {
+    const coupons = await couponHelpers.listCoupons();
+    res.json({ coupons });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/coupons', requireCouponAdmin, async (req, res) => {
+  try {
+    const durationMonths = Number(req.body && req.body.durationMonths);
+    const count = Number((req.body && req.body.count) || 1);
+    const maxRedemptions = Number((req.body && req.body.maxRedemptions) || 1);
+    const notes = (req.body && req.body.notes) || null;
+
+    const created = await couponHelpers.generateCoupons(durationMonths, count, {
+      maxRedemptions,
+      notes,
+    });
+    res.json({ success: true, coupons: created });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

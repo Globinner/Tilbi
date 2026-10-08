@@ -190,7 +190,7 @@ async function evaluateAccess() {
       source: result && result.requiresOnline ? 'offline-expired' : 'unpaid',
       reason:
         (result && result.reason) ||
-        'No active subscription. Choose Monthly $5 or Yearly $29.',
+        'No active subscription. Choose Monthly $5 or Yearly $29, or redeem a coupon.',
       trial,
       account,
       planType: null,
@@ -211,7 +211,7 @@ async function evaluateAccess() {
   return {
     allowed: false,
     source: 'trial-expired',
-    reason: 'Your 7-day trial has ended. Sign in and subscribe to keep using Tilbi.',
+    reason: 'Your 7-day trial has ended. Sign in and subscribe, or redeem a coupon.',
     trial,
     account,
     planType: null,
@@ -344,6 +344,42 @@ async function getSubscriptionStatus() {
 }
 
 // Create subscription checkout — provider: 'stripe' | 'paypal'
+async function redeemCoupon(code) {
+  const token = getAuthToken();
+  if (!token) {
+    return { success: false, error: 'Sign in first, then redeem your coupon.' };
+  }
+
+  try {
+    const response = await apiRequest('/api/coupon/redeem', {
+      method: 'POST',
+      token,
+      body: { code },
+    });
+
+    if (response.subscription) {
+      store.set('subscriptionStatus', {
+        valid: response.subscription.status === 'active',
+        planType: response.subscription.planType,
+        expiresAt: response.subscription.currentPeriodEnd,
+        cancelAtPeriodEnd: response.subscription.cancelAtPeriodEnd,
+        lastValidatedAt: new Date().toISOString(),
+        lastValidatedOnline: true,
+      });
+      store.set('lastValidationTime', Date.now());
+    }
+
+    return {
+      success: true,
+      message: response.message,
+      coupon: response.coupon,
+      subscription: response.subscription,
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 async function createSubscription(planType, provider = 'stripe') {
   const token = getAuthToken();
   if (!token) {
@@ -456,6 +492,7 @@ module.exports = {
   validateLicense,
   getSubscriptionStatus,
   createSubscription,
+  redeemCoupon,
   confirmPayPalSubscription,
   cancelSubscription,
   resumeSubscription,

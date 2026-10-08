@@ -3129,6 +3129,10 @@ ipcMain.handle('subscription-create', async (event, { planType, provider = 'stri
   return await subscription.createSubscription(planType, provider);
 });
 
+ipcMain.handle('subscription-redeem-coupon', async (event, { code }) => {
+  return await subscription.redeemCoupon(code);
+});
+
 ipcMain.handle('subscription-confirm-paypal', async (event, { subscriptionId }) => {
   return await subscription.confirmPayPalSubscription(subscriptionId);
 });

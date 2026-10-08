@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "coupons": "node generate-coupons.js",
+    "coupons:list": "node generate-coupons.js list"
   },
   "dependencies": {
     "express": "^4.18.2",

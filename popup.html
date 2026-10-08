@@ -3673,7 +3673,8 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       background: #b91c1c !important;
       border-color: #991b1b !important;
     }
-    .billing-auth-row input {
+    .billing-auth-row input,
+    .billing-coupon-code {
       width: 100%;
       padding: 8px 10px;
       border-radius: 6px;
@@ -3683,6 +3684,30 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       font-size: 13px;
       background: #0f172a;
       color: #ffffff;
+    }
+    .billing-coupon-row {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .billing-coupon-label {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 0 0 8px 0 !important;
+      color: #ffffff !important;
+    }
+    .billing-coupon-actions {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .billing-coupon-actions .billing-coupon-code {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    .billing-coupon-actions .billing-redeem-btn {
+      white-space: nowrap;
+      height: 36px;
     }
     .billing-message.is-error { color: #fca5a5 !important; }
     .billing-message.is-ok { color: #86efac !important; }
@@ -4249,7 +4274,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
   <div id="license-paywall" aria-hidden="true">
     <div class="license-paywall-inner">
       <h2>Tilbi is locked</h2>
-      <p id="license-paywall-reason">Your 7-day trial has ended. Sign in and subscribe to keep using Tilbi.</p>
+      <p id="license-paywall-reason">Your 7-day trial has ended. Sign in and subscribe, or redeem a coupon.</p>
       <div data-billing-slot></div>
     </div>
   </div>
@@ -8126,7 +8151,7 @@ searchInput.disabled = true;
       return (
         '<div class="billing-section">' +
           '<h3>Plan &amp; Billing</h3>' +
-          '<p class="billing-status-line">$5 / month or $29 / year. Sign in to subscribe or see the plan you own.</p>' +
+          '<p class="billing-status-line">$5 / month or $29 / year. Sign in to subscribe, redeem a coupon, or see the plan you own.</p>' +
           '<p class="billing-message" style="display: none; font-size: 12px; margin-top: 4px;"></p>' +
           '<div class="billing-auth-signed-out billing-auth-row">' +
             '<input class="billing-email" type="email" placeholder="Email" autocomplete="username">' +
@@ -8166,6 +8191,13 @@ searchInput.disabled = true;
             '<button type="button" class="billing-manage-btn billing-btn-manage">Manage billing</button>' +
             '<button type="button" class="billing-resume-btn billing-btn-manage" style="display: none;">Resume plan</button>' +
             '<button type="button" class="billing-cancel-btn billing-btn-cancel">Cancel plan</button>' +
+          '</div>' +
+          '<div class="billing-coupon-row">' +
+            '<p class="billing-coupon-label">Have a coupon?</p>' +
+            '<div class="billing-coupon-actions">' +
+              '<input class="billing-coupon-code" type="text" placeholder="TILBI-3M-XXXXXX" maxlength="32" spellcheck="false">' +
+              '<button type="button" class="billing-redeem-btn">Redeem</button>' +
+            '</div>' +
           '</div>' +
         '</div>'
       );
@@ -8213,6 +8245,9 @@ searchInput.disabled = true;
     function formatPlanLabel(planType) {
       if (planType === 'yearly') return 'Yearly — $29/year';
       if (planType === 'monthly') return 'Monthly — $5/month';
+      if (planType === 'coupon_3m') return 'Coupon — 3 months';
+      if (planType === 'coupon_6m') return 'Coupon — 6 months';
+      if (planType === 'coupon_1y') return 'Coupon — 1 year';
       return planType || 'None';
     }
 
@@ -8253,7 +8288,7 @@ searchInput.disabled = true;
       if (!account || !account.authenticated) {
         if (signedOut) signedOut.style.display = 'block';
         if (signedIn) signedIn.style.display = 'none';
-        statusLine.textContent = '$5 / month or $29 / year. Sign in to subscribe or see the plan you own.';
+        statusLine.textContent = '$5 / month or $29 / year. Sign in to subscribe, redeem a coupon, or see the plan you own.';
         setPayButtonsEnabled(true);
         return;
       }
@@ -8266,13 +8301,15 @@ searchInput.disabled = true;
         const result = await ipcRenderer.invoke('subscription-get-status');
         const sub = result && result.subscription;
         if (!sub || (sub.status !== 'active' && sub.status !== 'trialing' && sub.status !== 'past_due')) {
-          statusLine.textContent = 'No active plan. Choose Monthly ($5) or Yearly ($29).';
+          statusLine.textContent = 'No active plan. Choose Monthly ($5), Yearly ($29), or redeem a coupon.';
           setPayButtonsEnabled(true);
           if (result && result.error) setBillingMessage(result.error, 'error');
           return;
         }
 
-        const providerLabel = sub.provider === 'paypal' ? 'PayPal' : 'Card (Stripe)';
+        const providerLabel = sub.provider === 'paypal'
+          ? 'PayPal'
+          : (sub.provider === 'coupon' ? 'coupon' : 'Card (Stripe)');
         let line = 'Current plan: ' + formatPlanLabel(sub.planType) + ' via ' + providerLabel;
         if (sub.currentPeriodEnd) {
           const ends = new Date(sub.currentPeriodEnd);
@@ -8287,9 +8324,13 @@ searchInput.disabled = true;
 
         if (sub.planType === 'yearly' && yearlyCard) yearlyCard.classList.add('is-current');
         if (sub.planType === 'monthly' && monthlyCard) monthlyCard.classList.add('is-current');
-        setPayButtonsEnabled(false);
-        if (manageRow) manageRow.style.display = 'flex';
-        if (resumeBtn && sub.cancelAtPeriodEnd) resumeBtn.style.display = 'inline-flex';
+        const isCoupon = sub.provider === 'coupon' || String(sub.planType || '').indexOf('coupon_') === 0;
+        setPayButtonsEnabled(true);
+        if (!isCoupon) {
+          setPayButtonsEnabled(false);
+          if (manageRow) manageRow.style.display = 'flex';
+          if (resumeBtn && sub.cancelAtPeriodEnd) resumeBtn.style.display = 'inline-flex';
+        }
       } catch (err) {
         statusLine.textContent = 'Signed in, but subscription status could not be loaded.';
         setBillingMessage((err && err.message) || 'Status check failed.', 'error');
@@ -8446,13 +8487,59 @@ searchInput.disabled = true;
         } catch (err) {
           setBillingMessage((err && err.message) || 'Resume failed.', 'error');
         }
+        return;
+      }
+      if (e.target.closest('.billing-redeem-btn')) {
+        return redeemCouponCode();
       }
     });
 
+    async function redeemCouponCode() {
+      if (billingBusy) return;
+      const root = getActiveBillingRoot();
+      const codeEl = root && root.querySelector('.billing-coupon-code');
+      const code = (codeEl && codeEl.value || '').trim();
+      if (!code) {
+        setBillingMessage('Enter a coupon code.', 'error');
+        return;
+      }
+      let account = { authenticated: false };
+      try {
+        account = await ipcRenderer.invoke('subscription-get-account');
+      } catch (_) {}
+      if (!account || !account.authenticated) {
+        setBillingMessage('Sign in first, then redeem your coupon.', 'error');
+        return;
+      }
+      billingBusy = true;
+      setBillingMessage('Redeeming coupon...');
+      try {
+        const result = await ipcRenderer.invoke('subscription-redeem-coupon', { code });
+        if (!result || !result.success) {
+          setBillingMessage((result && result.error) || 'Could not redeem coupon.', 'error');
+          return;
+        }
+        if (codeEl) codeEl.value = '';
+        setBillingMessage(result.message || 'Coupon redeemed.', 'ok');
+        await refreshBillingUI();
+        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
+      } catch (err) {
+        setBillingMessage((err && err.message) || 'Coupon redeem failed. Is the billing server running?', 'error');
+      } finally {
+        billingBusy = false;
+      }
+    }
+
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
-      if (!e.target.classList || !e.target.classList.contains('billing-password')) return;
-      billingLoginOrRegister('login');
+      if (!e.target.classList) return;
+      if (e.target.classList.contains('billing-password')) {
+        billingLoginOrRegister('login');
+        return;
+      }
+      if (e.target.classList.contains('billing-coupon-code')) {
+        redeemCouponCode();
+      }
     });
 
     window.addEventListener('focus', () => {
@@ -8480,7 +8567,7 @@ searchInput.disabled = true;
       if (reasonEl) {
         reasonEl.textContent = access.reason || (allowed
           ? ''
-          : 'Sign in and choose Monthly $5 or Yearly $29 to keep using Tilbi.');
+          : 'Sign in and subscribe, or redeem a 3-month, 6-month, or 1-year coupon.');
       }
       if (banner) {
         const trial = access.trial;
