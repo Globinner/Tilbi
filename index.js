@@ -1391,17 +1391,21 @@ app.whenReady().then(() => {
   }
 
   // Check license, then open the app. Unpaid / expired trial still gets a window (paywall).
-  refreshAppAccess().then((access) => {
-    createMainWindow();
-    if (access && access.allowed) startClipboardMonitoring();
-  }).catch(() => {
-    appAccess = {
-      allowed: false,
-      source: 'error',
-      reason: 'Could not verify license. Sign in and subscribe to use Tilbi.',
-    };
-    createMainWindow();
-  });
+  ensureBillingServer()
+    .catch((err) => console.warn('Billing server start skipped:', err && err.message))
+    .finally(() => {
+      refreshAppAccess().then((access) => {
+        createMainWindow();
+        if (access && access.allowed) startClipboardMonitoring();
+      }).catch(() => {
+        appAccess = {
+          allowed: false,
+          source: 'error',
+          reason: 'Could not verify license. Sign in and subscribe to use Tilbi.',
+        };
+        createMainWindow();
+      });
+    });
   
   // Register global shortcut (Ctrl+Shift+V)
   globalShortcut.register('CommandOrControl+Shift+V', () => {
@@ -3036,6 +3040,68 @@ ipcMain.handle('get-video-bounds', () => {
 // ============================================================================
 
 let appAccess = { allowed: false, source: 'pending', reason: 'Checking license...' };
+let billingServerProcess = null;
+
+function billingServerScriptPath() {
+  const candidates = [
+    path.join(__dirname, 'server', 'server.js'),
+    path.join(process.cwd(), 'server', 'server.js'),
+    process.resourcesPath && path.join(process.resourcesPath, 'server', 'server.js'),
+    process.resourcesPath && path.join(process.resourcesPath, 'app.asar.unpacked', 'server', 'server.js'),
+    path.join(os.homedir(), 'Desktop', 'Tilbi', 'server', 'server.js'),
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => {
+    try {
+      if (!fs.existsSync(candidate)) return false;
+      if (candidate.includes('.asar' + path.sep) || candidate.includes('.asar/')) return false;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }) || null;
+}
+
+function pingBillingServer() {
+  return new Promise((resolve) => {
+    const req = http.get('http://127.0.0.1:3001/health', (res) => {
+      res.resume();
+      resolve(res.statusCode >= 200 && res.statusCode < 500);
+    });
+    req.on('error', () => resolve(false));
+    req.setTimeout(800, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function ensureBillingServer() {
+  if (await pingBillingServer()) return true;
+  const script = billingServerScriptPath();
+  if (!script) {
+    console.warn('Billing server is not running and server.js was not found.');
+    return false;
+  }
+  try {
+    billingServerProcess = spawn('node', [script], {
+      cwd: path.dirname(script),
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: { ...process.env, PORT: '3001' },
+    });
+    billingServerProcess.unref();
+  } catch (err) {
+    console.warn('Could not start billing server:', err.message);
+    return false;
+  }
+  for (let i = 0; i < 20; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (await pingBillingServer()) return true;
+  }
+  return false;
+}
 
 function isAppUnlocked() {
   return !!(appAccess && appAccess.allowed);

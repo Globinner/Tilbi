@@ -36,17 +36,32 @@ async function apiRequest(endpoint, options = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(endpoint, API_BASE_URL);
     const protocol = url.protocol === 'https:' ? https : http;
-    
+    const body = options.body ? JSON.stringify(options.body) : null;
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (options.token) {
+      headers.Authorization = `Bearer ${options.token}`;
+    }
+    if (body) {
+      headers['Content-Length'] = Buffer.byteLength(body);
+    }
+    if (options.headers) {
+      Object.assign(headers, options.headers);
+    }
+    Object.keys(headers).forEach((key) => {
+      if (headers[key] === undefined || headers[key] === null) {
+        delete headers[key];
+      }
+    });
+
     const req = protocol.request({
       hostname: url.hostname,
       port: url.port || (url.protocol === 'https:' ? 443 : 80),
       path: url.pathname + url.search,
       method: options.method || 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': options.token ? `Bearer ${options.token}` : undefined,
-        ...options.headers
-      }
+      headers
     }, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -56,20 +71,27 @@ async function apiRequest(endpoint, options = {}) {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(json);
           } else {
-            reject(new Error(json.error || `HTTP ${res.statusCode}`));
+            const message = (json && (json.error || (json.errors && json.errors[0] && json.errors[0].msg))) || `HTTP ${res.statusCode}`;
+            reject(new Error(message));
           }
         } catch (error) {
-          reject(new Error(`Invalid JSON response: ${data}`));
+          reject(new Error(data ? `Invalid JSON response: ${data}` : `Empty response (HTTP ${res.statusCode})`));
         }
       });
     });
 
-    req.on('error', reject);
-    
-    if (options.body) {
-      req.write(JSON.stringify(options.body));
+    req.on('error', (err) => {
+      if (err && (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND')) {
+        reject(new Error('Billing server is not running. Start it with: cd server && npm start'));
+        return;
+      }
+      reject(err);
+    });
+
+    if (body) {
+      req.write(body);
     }
-    
+
     req.end();
   });
 }
