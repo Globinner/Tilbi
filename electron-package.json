@@ -1,6 +1,6 @@
 {
   "name": "tilbi",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "Tilbi clipboard manager",
   "main": "index.js",
   "publish": {
