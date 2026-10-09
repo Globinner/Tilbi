@@ -173,7 +173,11 @@ app.get('/api/subscription', authenticateToken, async (req, res) => {
     }
 
     const provider = subscription.payment_provider || 'stripe';
-    if (provider === 'stripe' && subscription.stripe_subscription_id) {
+    if (
+      provider === 'stripe' &&
+      subscription.stripe_subscription_id &&
+      process.env.STRIPE_SECRET_KEY
+    ) {
       await stripeHelpers.getSubscription(subscription.stripe_subscription_id);
     }
 

@@ -11,7 +11,8 @@ const os = require('os');
 const store = new Store({ name: 'clipboard-history' });
 
 // Configuration
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://127.0.0.1:3001';
+const API_TIMEOUT_MS = 8000;
 const DEVICE_ID = getDeviceId();
 
 // Get unique device ID
@@ -57,10 +58,11 @@ async function apiRequest(endpoint, options = {}) {
     });
 
     const req = protocol.request({
-      hostname: url.hostname,
+      hostname: url.hostname === 'localhost' ? '127.0.0.1' : url.hostname,
       port: url.port || (url.protocol === 'https:' ? 443 : 80),
       path: url.pathname + url.search,
       method: options.method || 'GET',
+      family: 4,
       headers
     }, (res) => {
       let data = '';
@@ -81,11 +83,16 @@ async function apiRequest(endpoint, options = {}) {
     });
 
     req.on('error', (err) => {
+      if (err && err.code === 'ABORT_ERR') return;
       if (err && (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND')) {
         reject(new Error('Billing server is not running. Start it with: cd server && npm start'));
         return;
       }
       reject(err);
+    });
+    req.setTimeout(API_TIMEOUT_MS, () => {
+      req.destroy();
+      reject(new Error('Billing request timed out. Retry Refresh status.'));
     });
 
     if (body) {

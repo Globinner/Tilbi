@@ -8350,6 +8350,7 @@ searchInput.disabled = true;
           statusLine.textContent = 'No active plan. Choose Monthly ($5), Yearly ($29), or redeem a coupon.';
           setPayButtonsEnabled(true);
           if (result && result.error) setBillingMessage(result.error, 'error');
+          else setBillingMessage('');
           return;
         }
 
@@ -8367,6 +8368,7 @@ searchInput.disabled = true;
         }
         if (sub.status === 'past_due') line += ' — payment past due';
         statusLine.textContent = line;
+        setBillingMessage('');
 
         if (sub.planType === 'yearly' && yearlyCard) yearlyCard.classList.add('is-current');
         if (sub.planType === 'monthly' && monthlyCard) monthlyCard.classList.add('is-current');
@@ -8411,7 +8413,11 @@ searchInput.disabled = true;
         if (passwordEl) passwordEl.value = '';
         setBillingMessage(mode === 'register' ? 'Account created.' : 'Signed in.', 'ok');
         await refreshBillingUI();
-        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
+        billingBusy = false;
+        if (typeof refreshLicenseAccess === 'function') {
+          refreshLicenseAccess().catch(() => {});
+        }
+        return;
       } catch (err) {
         setBillingMessage((err && err.message) || 'Sign-in failed. Is the billing server running?', 'error');
       } finally {
@@ -8484,9 +8490,17 @@ searchInput.disabled = true;
       }
       if (e.target.closest('.billing-refresh-btn')) {
         setBillingMessage('Checking plan...');
-        await confirmPendingPaypal();
-        await refreshBillingUI();
-        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
+        try {
+          await confirmPendingPaypal(true);
+          await refreshBillingUI();
+          const el = getActiveBillingRoot() && getActiveBillingRoot().querySelector('.billing-message');
+          if (el && /checking plan/i.test(el.textContent || '')) setBillingMessage('');
+        } catch (err) {
+          setBillingMessage((err && err.message) || 'Could not check plan.', 'error');
+        }
+        if (typeof refreshLicenseAccess === 'function') {
+          refreshLicenseAccess().catch(() => {});
+        }
         return;
       }
       const stripeBtn = e.target.closest('.billing-pay-stripe');
@@ -8541,7 +8555,10 @@ searchInput.disabled = true;
     });
 
     async function redeemCouponCode() {
-      if (billingBusy) return;
+      if (billingBusy) {
+        setBillingMessage('Still working… try Redeem again in a moment.', 'error');
+        return;
+      }
       const root = getActiveBillingRoot();
       const codeEl = root && root.querySelector('.billing-coupon-code');
       const code = (codeEl && codeEl.value || '').trim();
@@ -8568,7 +8585,9 @@ searchInput.disabled = true;
         if (codeEl) codeEl.value = '';
         setBillingMessage(result.message || 'Coupon redeemed.', 'ok');
         await refreshBillingUI();
-        if (typeof refreshLicenseAccess === 'function') await refreshLicenseAccess();
+        if (typeof refreshLicenseAccess === 'function') {
+          refreshLicenseAccess().catch(() => {});
+        }
       } catch (err) {
         setBillingMessage((err && err.message) || 'Coupon redeem failed. Is the billing server running?', 'error');
       } finally {
