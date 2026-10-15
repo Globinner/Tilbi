@@ -1160,7 +1160,6 @@
     body[data-theme="ocean-breeze"] .tab[data-tab="loginner"].active { color: #C8A27D !important; }
 
     body[data-theme="ocean-breeze"] .search-bar input { border-color: #C8A27D !important; color: #bbf7d0 !important; }
-    body[data-theme="ocean-breeze"] .search-bar .saved-toggle-btn,
     body[data-theme="ocean-breeze"] .search-bar .clear-btn { background-color: #C8A27D !important; color: #1a3d1f !important; border: 2px solid #C8A27D !important; }
 
     body[data-theme="ocean-breeze"] #history-tab .clip-item:hover,
@@ -1570,15 +1569,15 @@
       padding: 8px 12px;
       border: none;
       border-radius: 4px;
-      background-color: var(--primary-color);
+      background-color: #6c757d;
       color: #fff;
       font-weight: 600;
       cursor: pointer;
-      transition: filter 0.2s ease, transform 0.1s ease;
+      transition: background-color 0.2s ease, filter 0.2s ease, transform 0.1s ease;
     }
     
     .search-bar .saved-toggle-btn:hover {
-      filter: brightness(0.92);
+      background-color: #5c636a;
     }
     
     .search-bar .saved-toggle-btn:active {
@@ -1586,8 +1585,13 @@
     }
     
     .search-bar .saved-toggle-btn.active {
-      filter: brightness(0.85);
-      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12);
+      background-color: #4a86e8;
+      filter: none;
+      box-shadow: 0 0 0 2px rgba(74, 134, 232, 0.35);
+    }
+
+    .search-bar .saved-toggle-btn.active:hover {
+      background-color: #3b78e7;
     }
     
     .search-bar .saved-toggle-btn:focus-visible {
