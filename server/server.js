@@ -1,4 +1,7 @@
 require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const { authenticateToken, registerUser, loginUser } = require('./auth');
@@ -8,6 +11,17 @@ const paypalHelpers = require('./paypal');
 const couponHelpers = require('./coupons');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { body, validationResult } = require('express-validator');
+
+function ensureAdminSecret() {
+  if (process.env.COUPON_ADMIN_SECRET) return process.env.COUPON_ADMIN_SECRET;
+  const secret = 'tilbi_' + crypto.randomBytes(12).toString('hex');
+  process.env.COUPON_ADMIN_SECRET = secret;
+  const envPath = path.join(__dirname, '.env');
+  fs.appendFileSync(envPath, (fs.existsSync(envPath) ? '\n' : '') + 'COUPON_ADMIN_SECRET=' + secret + '\n');
+  console.log('Coupon admin secret saved to server/.env');
+  return secret;
+}
+ensureAdminSecret();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,9 +41,17 @@ function subscriptionResponse(subscription) {
   };
 }
 
+function isLoopback(req) {
+  const ip = String(req.ip || req.socket.remoteAddress || '');
+  return ip === '127.0.0.1' || ip === '::1' || ip.endsWith('127.0.0.1');
+}
+
 function requireCouponAdmin(req, res, next) {
+  if (!isLoopback(req)) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   const secret = process.env.COUPON_ADMIN_SECRET;
-  const provided = req.headers['x-admin-secret'];
+  const provided = req.headers['x-admin-secret'] || (req.query && req.query.secret);
   if (!secret || !provided || provided !== secret) {
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -68,6 +90,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check
+app.get('/admin', (req, res) => {
+  if (!isLoopback(req)) {
+    return res.status(404).send('Not found');
+  }
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
