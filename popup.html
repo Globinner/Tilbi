@@ -3888,6 +3888,28 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       transition: all 0.2s ease-out;
     }
 
+    #history-tab .clip-text.image-container,
+    #pinned-tab .clip-text.image-container {
+      height: auto;
+      max-height: 40px;
+      min-height: 24px;
+    }
+    #history-tab .clip-text.image-container img,
+    #pinned-tab .clip-text.image-container img {
+      visibility: visible;
+      max-height: 36px !important;
+    }
+    .clip-text.image-container.image-missing {
+      height: auto;
+      min-height: 0;
+      max-height: none;
+    }
+    .clip-text.image-container.image-missing::before {
+      content: 'Image';
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
     /* Prevent image from expanding on hover */
     .clip-text.image-container:hover img {
       max-height: 80px !important;
@@ -7403,6 +7425,24 @@ searchInput.disabled = true;
       return items.length + ':' + listItemSignature(items[0]);
     }
 
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function clipboardPreviewText(raw) {
+      return String(raw || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function isVisibleClipboardItem(item) {
+      if (item && typeof item === 'object') return true;
+      if (typeof item === 'string' && item.startsWith('data:image/')) return true;
+      return clipboardPreviewText(item).length > 0;
+    }
+
     function fillList(container, items, builder, emptyText) {
       container.innerHTML = '';
       if (!items.length) {
@@ -7473,7 +7513,7 @@ searchInput.disabled = true;
       const historySig = listSignature(filteredHistory);
       if (searchTerm || historySig !== lastHistorySig) {
         lastHistorySig = historySig;
-        fillList(historyTab, filteredHistory, (item) => createClipItem(item, clipboardData.pinned.includes(item)), 'No clipboard history items found');
+        fillList(historyTab, filteredHistory.filter(isVisibleClipboardItem), (item) => createClipItem(item, clipboardData.pinned.includes(item)), 'No clipboard history items found');
       }
 
       let filteredPinned = clipboardData.pinned || [];
@@ -7492,7 +7532,7 @@ searchInput.disabled = true;
       const pinnedSig = (isSavedView && savedVaultState.activeId ? savedVaultState.activeId : 'all') + '|' + listSignature(filteredPinned);
       if (searchTerm || pinnedSig !== lastPinnedSig) {
         lastPinnedSig = pinnedSig;
-        fillList(pinnedTab, filteredPinned, (item) => createClipItem(item, true), pinnedEmptyText);
+        fillList(pinnedTab, filteredPinned.filter(isVisibleClipboardItem), (item) => createClipItem(item, true), pinnedEmptyText);
       }
 
       let filteredScreener = clipboardData.screener || [];
@@ -7615,11 +7655,12 @@ searchInput.disabled = true;
         </div>`;
       } else if (typeof content === 'string' && content.startsWith('data:image/')) {
         contentHTML = `<div class="clip-text image-container">
-          <img draggable="false" src="${content}" alt="Screenshot" onload="this.classList.add('loaded')">
+          <img draggable="false" src="${content}" alt="Image" onload="this.classList.add('loaded')" onerror="this.parentElement.classList.add('image-missing'); this.remove();">
         </div>`;
       } else {
-        const displayText = content.length > 50 ? content.substring(0, 50) + '...' : content;
-        contentHTML = `<div class="clip-text" title="${content.replace(/"/g, '&quot;')}">${displayText}</div>`;
+        const collapsed = clipboardPreviewText(content);
+        const displayText = collapsed.length > 50 ? collapsed.substring(0, 50) + '...' : collapsed;
+        contentHTML = `<div class="clip-text" title="${escapeHtml(collapsed.slice(0, 500))}">${escapeHtml(displayText)}</div>`;
       }
       
       // Get current language translations
