@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const { dbHelpers } = require('./database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRY = '30d';
+const JWT_EXPIRY = process.env.JWT_EXPIRY || '10y';
 
 // Generate JWT token
 function generateToken(userId) {
@@ -13,7 +13,8 @@ function generateToken(userId) {
 // Verify JWT token
 function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    // Local desktop billing: keep signed-in sessions valid after the old 30-day expiry.
+    return jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
   } catch (error) {
     return null;
   }

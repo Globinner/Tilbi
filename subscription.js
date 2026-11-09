@@ -405,7 +405,11 @@ async function redeemCoupon(code) {
       subscription: response.subscription,
     };
   } catch (error) {
-    return { success: false, error: error.message };
+    const message = error.message || 'Could not redeem coupon';
+    if (/invalid or expired token|access token required/i.test(message)) {
+      return { success: false, error: 'Session expired. Log out, log in, then redeem the coupon.' };
+    }
+    return { success: false, error: message };
   }
 }
 

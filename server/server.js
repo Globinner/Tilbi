@@ -2,6 +2,31 @@ require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+
+function persistEnvValue(key, value) {
+  const envPath = path.join(__dirname, '.env');
+  const current = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+  if (new RegExp('^' + key + '=', 'm').test(current)) return;
+  const prefix = current && !current.endsWith('\n') ? '\n' : '';
+  fs.appendFileSync(envPath, prefix + key + '=' + value + '\n');
+}
+
+if (!process.env.JWT_SECRET) {
+  // Keep the same secret already used to sign existing Tilbi sessions.
+  process.env.JWT_SECRET = 'your-secret-key-change-in-production';
+  persistEnvValue('JWT_SECRET', process.env.JWT_SECRET);
+}
+
+function ensureAdminSecret() {
+  if (process.env.COUPON_ADMIN_SECRET) return process.env.COUPON_ADMIN_SECRET;
+  const secret = 'tilbi_' + crypto.randomBytes(12).toString('hex');
+  process.env.COUPON_ADMIN_SECRET = secret;
+  persistEnvValue('COUPON_ADMIN_SECRET', secret);
+  console.log('Coupon admin secret saved to server/.env');
+  return secret;
+}
+ensureAdminSecret();
+
 const express = require('express');
 const cors = require('cors');
 const { authenticateToken, registerUser, loginUser } = require('./auth');
@@ -11,17 +36,6 @@ const paypalHelpers = require('./paypal');
 const couponHelpers = require('./coupons');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { body, validationResult } = require('express-validator');
-
-function ensureAdminSecret() {
-  if (process.env.COUPON_ADMIN_SECRET) return process.env.COUPON_ADMIN_SECRET;
-  const secret = 'tilbi_' + crypto.randomBytes(12).toString('hex');
-  process.env.COUPON_ADMIN_SECRET = secret;
-  const envPath = path.join(__dirname, '.env');
-  fs.appendFileSync(envPath, (fs.existsSync(envPath) ? '\n' : '') + 'COUPON_ADMIN_SECRET=' + secret + '\n');
-  console.log('Coupon admin secret saved to server/.env');
-  return secret;
-}
-ensureAdminSecret();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
