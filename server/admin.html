@@ -68,13 +68,8 @@
   </style>
 </head>
 <body>
-  <h1>Tilbi coupon admin</h1>
-  <p class="sub">Local only. Not shown in the Tilbi app.</p>
-
-  <div id="login" class="login">
-    <input id="secret" type="password" placeholder="Admin secret from server/.env" size="36">
-    <button type="button" id="unlock">Unlock</button>
-  </div>
+  <h1>Globinner · Tilbi coupons</h1>
+  <p class="sub">Owner only on this PC. Not shown to Tilbi users.</p>
   <div class="msg" id="msg"></div>
 
   <div id="app" class="hidden">
@@ -117,20 +112,14 @@
   </div>
 
   <script>
-    const secretInput = document.getElementById('secret');
     const msg = document.getElementById('msg');
     let coupons = [];
-
-    function secret() {
-      return (sessionStorage.getItem('tilbiAdminSecret') || secretInput.value || '').trim();
-    }
 
     async function api(path, options) {
       const res = await fetch(path, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Secret': secret(),
           ...(options && options.headers)
         }
       });
@@ -161,22 +150,9 @@
     async function load() {
       const data = await api('/api/admin/coupons');
       coupons = data.coupons || [];
-      document.getElementById('login').classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
       render();
     }
-
-    document.getElementById('unlock').onclick = async () => {
-      sessionStorage.setItem('tilbiAdminSecret', secretInput.value.trim());
-      try {
-        msg.textContent = '';
-        await load();
-      } catch (err) {
-        sessionStorage.removeItem('tilbiAdminSecret');
-        msg.textContent = err.message;
-        msg.style.color = '#fca5a5';
-      }
-    };
 
     document.getElementById('refresh').onclick = () => load().catch((err) => { msg.textContent = err.message; });
     document.getElementById('filter').onchange = render;
@@ -205,9 +181,10 @@
       }
     };
 
-    if (sessionStorage.getItem('tilbiAdminSecret')) {
-      load().catch(() => sessionStorage.removeItem('tilbiAdminSecret'));
-    }
+    load().catch((err) => {
+      msg.style.color = '#fca5a5';
+      msg.textContent = err.message;
+    });
   </script>
 </body>
 </html>

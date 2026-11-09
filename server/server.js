@@ -64,11 +64,6 @@ function requireCouponAdmin(req, res, next) {
   if (!isLoopback(req)) {
     return res.status(404).json({ error: 'Not found' });
   }
-  const secret = process.env.COUPON_ADMIN_SECRET;
-  const provided = req.headers['x-admin-secret'] || (req.query && req.query.secret);
-  if (!secret || !provided || provided !== secret) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
   next();
 }
 

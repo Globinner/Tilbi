@@ -5,5 +5,5 @@ start "" /MIN cmd /c "node server.js"
 timeout /t 2 /nobreak >nul
 start "" "http://127.0.0.1:3001/admin"
 echo Opened http://127.0.0.1:3001/admin
-echo Secret is COUPON_ADMIN_SECRET in server\.env
+echo Owner coupon page: http://127.0.0.1:3001/admin
 if /i not "%~1"=="nopause" pause
