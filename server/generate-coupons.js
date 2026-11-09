@@ -20,12 +20,13 @@ async function main() {
     process.exit(0);
   }
 
-  if (![3, 6, 12].includes(months) || !Number.isFinite(count) || count < 1) {
+  if (![1, 3, 6, 12].includes(months) || !Number.isFinite(count) || count < 1) {
     console.error('Usage:');
-    console.error('  node generate-coupons.js <3|6|12> [count]');
+    console.error('  node generate-coupons.js <1|3|6|12> [count]');
     console.error('  node generate-coupons.js list');
     console.error('');
     console.error('Examples:');
+    console.error('  node generate-coupons.js 1 50    # fifty 1-month codes');
     console.error('  node generate-coupons.js 3 10    # ten 3-month codes');
     console.error('  node generate-coupons.js 6 5     # five 6-month codes');
     console.error('  node generate-coupons.js 12 5    # five 1-year codes');

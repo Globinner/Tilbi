@@ -77,7 +77,7 @@ async function migrateSubscriptionsPlanTypes() {
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT UNIQUE,
       paypal_subscription_id TEXT UNIQUE,
-      plan_type TEXT NOT NULL CHECK(plan_type IN ('monthly', 'yearly', 'coupon_3m', 'coupon_6m', 'coupon_1y')),
+      plan_type TEXT NOT NULL CHECK(plan_type IN ('monthly', 'yearly', 'coupon_1m', 'coupon_3m', 'coupon_6m', 'coupon_1y')),
       status TEXT NOT NULL CHECK(status IN ('active', 'canceled', 'past_due', 'trialing')),
       current_period_start DATETIME,
       current_period_end DATETIME,
@@ -103,18 +103,60 @@ async function migrateSubscriptionsPlanTypes() {
   await runAsync(`ALTER TABLE subscriptions_new RENAME TO subscriptions`);
 }
 
-async function migrateSchema() {
-  await runMigration(`ALTER TABLE subscriptions ADD COLUMN payment_provider TEXT DEFAULT 'stripe'`);
-  await runMigration(`ALTER TABLE subscriptions ADD COLUMN paypal_subscription_id TEXT`);
-  await runMigration(`ALTER TABLE payments ADD COLUMN payment_provider TEXT DEFAULT 'stripe'`);
-  await runMigration(`ALTER TABLE payments ADD COLUMN external_payment_id TEXT`);
-  await migrateSubscriptionsPlanTypes();
+async function migrateSubscriptionsCoupon1m() {
+  const row = await getAsync(
+    `SELECT sql FROM sqlite_master WHERE type='table' AND name='subscriptions'`
+  );
+  const sql = (row && row.sql) || '';
+  if (!sql || sql.includes('coupon_1m')) return;
 
   await runAsync(`
-    CREATE TABLE IF NOT EXISTS coupons (
+    CREATE TABLE IF NOT EXISTS subscriptions_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      payment_provider TEXT DEFAULT 'stripe',
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT UNIQUE,
+      paypal_subscription_id TEXT UNIQUE,
+      plan_type TEXT NOT NULL CHECK(plan_type IN ('monthly', 'yearly', 'coupon_1m', 'coupon_3m', 'coupon_6m', 'coupon_1y')),
+      status TEXT NOT NULL CHECK(status IN ('active', 'canceled', 'past_due', 'trialing')),
+      current_period_start DATETIME,
+      current_period_end DATETIME,
+      cancel_at_period_end BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+  await runAsync(`
+    INSERT INTO subscriptions_new (
+      id, user_id, payment_provider, stripe_customer_id, stripe_subscription_id,
+      paypal_subscription_id, plan_type, status, current_period_start, current_period_end,
+      cancel_at_period_end, created_at, updated_at
+    )
+    SELECT
+      id, user_id, COALESCE(payment_provider, 'stripe'), stripe_customer_id, stripe_subscription_id,
+      paypal_subscription_id, plan_type, status, current_period_start, current_period_end,
+      cancel_at_period_end, created_at, updated_at
+    FROM subscriptions
+  `);
+  await runAsync(`DROP TABLE subscriptions`);
+  await runAsync(`ALTER TABLE subscriptions_new RENAME TO subscriptions`);
+}
+
+async function migrateCouponsAllow1Month() {
+  const row = await getAsync(
+    `SELECT sql FROM sqlite_master WHERE type='table' AND name='coupons'`
+  );
+  const sql = (row && row.sql) || '';
+  if (!sql) return;
+  if (sql.includes('IN (1, 3, 6, 12)') || sql.includes('IN (1,3,6,12)')) return;
+
+  await runAsync(`
+    CREATE TABLE coupons_new (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT UNIQUE NOT NULL,
-      duration_months INTEGER NOT NULL CHECK(duration_months IN (3, 6, 12)),
+      duration_months INTEGER NOT NULL CHECK(duration_months IN (1, 3, 6, 12)),
       max_redemptions INTEGER NOT NULL DEFAULT 1,
       redemption_count INTEGER NOT NULL DEFAULT 0,
       expires_at DATETIME,
@@ -122,6 +164,38 @@ async function migrateSchema() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await runAsync(`
+    INSERT INTO coupons_new (
+      id, code, duration_months, max_redemptions, redemption_count, expires_at, notes, created_at
+    )
+    SELECT id, code, duration_months, max_redemptions, redemption_count, expires_at, notes, created_at
+    FROM coupons
+  `);
+  await runAsync(`DROP TABLE coupons`);
+  await runAsync(`ALTER TABLE coupons_new RENAME TO coupons`);
+}
+
+async function migrateSchema() {
+  await runMigration(`ALTER TABLE subscriptions ADD COLUMN payment_provider TEXT DEFAULT 'stripe'`);
+  await runMigration(`ALTER TABLE subscriptions ADD COLUMN paypal_subscription_id TEXT`);
+  await runMigration(`ALTER TABLE payments ADD COLUMN payment_provider TEXT DEFAULT 'stripe'`);
+  await runMigration(`ALTER TABLE payments ADD COLUMN external_payment_id TEXT`);
+  await migrateSubscriptionsPlanTypes();
+  await migrateSubscriptionsCoupon1m();
+
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS coupons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      duration_months INTEGER NOT NULL CHECK(duration_months IN (1, 3, 6, 12)),
+      max_redemptions INTEGER NOT NULL DEFAULT 1,
+      redemption_count INTEGER NOT NULL DEFAULT 0,
+      expires_at DATETIME,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await migrateCouponsAllow1Month();
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS coupon_redemptions (
@@ -156,7 +230,7 @@ function initializeTables() {
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT UNIQUE,
       paypal_subscription_id TEXT UNIQUE,
-      plan_type TEXT NOT NULL CHECK(plan_type IN ('monthly', 'yearly', 'coupon_3m', 'coupon_6m', 'coupon_1y')),
+      plan_type TEXT NOT NULL CHECK(plan_type IN ('monthly', 'yearly', 'coupon_1m', 'coupon_3m', 'coupon_6m', 'coupon_1y')),
       status TEXT NOT NULL CHECK(status IN ('active', 'canceled', 'past_due', 'trialing')),
       current_period_start DATETIME,
       current_period_end DATETIME,

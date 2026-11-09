@@ -2,12 +2,14 @@ const crypto = require('crypto');
 const { dbHelpers } = require('./database');
 
 const DURATION_TO_PLAN = {
+  1: 'coupon_1m',
   3: 'coupon_3m',
   6: 'coupon_6m',
   12: 'coupon_1y',
 };
 
 const PLAN_LABELS = {
+  coupon_1m: 'Coupon — 1 month',
   coupon_3m: 'Coupon — 3 months',
   coupon_6m: 'Coupon — 6 months',
   coupon_1y: 'Coupon — 1 year',
@@ -17,6 +19,7 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function durationLabel(months) {
   if (months === 12) return '1 year';
+  if (months === 1) return '1 month';
   return `${months} months`;
 }
 
@@ -44,6 +47,7 @@ function randomSegment(length = 6) {
 function codePrefix(months) {
   if (months === 12) return 'TILBI-1Y';
   if (months === 6) return 'TILBI-6M';
+  if (months === 1) return 'TILBI-1M';
   return 'TILBI-3M';
 }
 
@@ -61,8 +65,8 @@ function normalizeCode(code) {
 async function generateCoupons(durationMonths, count = 1, options = {}) {
   const months = Number(durationMonths);
   const n = Math.min(50, Math.max(1, Number(count) || 1));
-  if (![3, 6, 12].includes(months)) {
-    throw new Error('Duration must be 3, 6, or 12 months');
+  if (![1, 3, 6, 12].includes(months)) {
+    throw new Error('Duration must be 1, 3, 6, or 12 months');
   }
 
   const created = [];
