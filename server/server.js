@@ -29,7 +29,7 @@ ensureAdminSecret();
 
 const express = require('express');
 const cors = require('cors');
-const { authenticateToken, registerUser, loginUser } = require('./auth');
+const { authenticateToken, registerUser, loginUser, generateToken } = require('./auth');
 const { dbHelpers } = require('./database');
 const stripeHelpers = require('./stripe');
 const paypalHelpers = require('./paypal');
@@ -114,6 +114,7 @@ app.get('/admin', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
+    persistentSessions: true,
     payments: {
       stripe: !!process.env.STRIPE_SECRET_KEY,
       paypal: !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
@@ -182,6 +183,13 @@ app.post(
     }
   }
 );
+
+app.post('/api/auth/refresh', authenticateToken, (req, res) => {
+  res.json({
+    success: true,
+    token: generateToken(req.userId),
+  });
+});
 
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {

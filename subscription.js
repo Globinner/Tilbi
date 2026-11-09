@@ -70,6 +70,8 @@ async function apiRequest(endpoint, options = {}) {
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
+          const refreshed = (res.headers && (res.headers['x-new-token'] || res.headers['X-New-Token'])) || (json && json.token);
+          if (refreshed) saveAuthToken(refreshed);
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(json);
           } else {
@@ -167,6 +169,50 @@ function getAuthToken() {
   return store.get('authToken');
 }
 
+function looksLikeJwt(value) {
+  return typeof value === 'string' && value.split('.').length === 3 && value.length > 20;
+}
+
+function saveAuthToken(token) {
+  if (looksLikeJwt(token)) {
+    store.set('authToken', token);
+  }
+}
+
+function isSessionErrorMessage(message) {
+  return /invalid or expired token|access token required|invalid session|please sign in again/i.test(String(message || ''));
+}
+
+async function refreshSession() {
+  const token = getAuthToken();
+  if (!token) return false;
+  try {
+    const response = await apiRequest('/api/auth/refresh', {
+      method: 'POST',
+      token,
+    });
+    if (response && response.token) saveAuthToken(response.token);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function authRequest(endpoint, options = {}) {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('Please sign in again.');
+  }
+  try {
+    return await apiRequest(endpoint, { ...options, token: getAuthToken() });
+  } catch (error) {
+    if (!isSessionErrorMessage(error.message)) throw error;
+    const ok = await refreshSession();
+    if (!ok) throw new Error('Please sign in again.');
+    return await apiRequest(endpoint, { ...options, token: getAuthToken() });
+  }
+}
+
 const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 function getTrialState() {
@@ -186,6 +232,9 @@ function getTrialState() {
 }
 
 async function evaluateAccess() {
+  if (getAuthToken()) {
+    await refreshSession();
+  }
   const trial = getTrialState();
   const account = getAccount();
 
@@ -255,9 +304,8 @@ async function validateLicense() {
   }
 
   try {
-    const response = await apiRequest('/api/license/validate', {
+    const response = await authRequest('/api/license/validate', {
       method: 'POST',
-      token,
       body: {
         deviceId: DEVICE_ID,
         deviceName: getDeviceName()
@@ -351,9 +399,8 @@ async function getSubscriptionStatus() {
   }
 
   try {
-    const response = await apiRequest('/api/subscription', {
+    const response = await authRequest('/api/subscription', {
       method: 'GET',
-      token
     });
     
     if (response.subscription) {
@@ -380,9 +427,9 @@ async function redeemCoupon(code) {
   }
 
   try {
-    const response = await apiRequest('/api/coupon/redeem', {
+    await refreshSession();
+    const response = await authRequest('/api/coupon/redeem', {
       method: 'POST',
-      token,
       body: { code },
     });
 
@@ -406,8 +453,8 @@ async function redeemCoupon(code) {
     };
   } catch (error) {
     const message = error.message || 'Could not redeem coupon';
-    if (/invalid or expired token|access token required/i.test(message)) {
-      return { success: false, error: 'Session expired. Log out, log in, then redeem the coupon.' };
+    if (isSessionErrorMessage(message)) {
+      return { success: false, error: 'Please sign in again, then redeem the coupon.' };
     }
     return { success: false, error: message };
   }
@@ -420,9 +467,8 @@ async function createSubscription(planType, provider = 'stripe') {
   }
 
   try {
-    const response = await apiRequest('/api/subscription/create', {
+    const response = await authRequest('/api/subscription/create', {
       method: 'POST',
-      token,
       body: { planType, provider },
     });
 
@@ -444,9 +490,8 @@ async function confirmPayPalSubscription(subscriptionId) {
   }
 
   try {
-    const response = await apiRequest('/api/subscription/paypal/confirm', {
+    const response = await authRequest('/api/subscription/paypal/confirm', {
       method: 'POST',
-      token,
       body: { subscriptionId },
     });
     return { success: true, subscription: response.subscription };
@@ -463,9 +508,8 @@ async function cancelSubscription(cancelImmediately = false) {
   }
 
   try {
-    const response = await apiRequest('/api/subscription/cancel', {
+    const response = await authRequest('/api/subscription/cancel', {
       method: 'POST',
-      token,
       body: { cancelImmediately }
     });
     
@@ -483,9 +527,8 @@ async function resumeSubscription() {
   }
 
   try {
-    const response = await apiRequest('/api/subscription/resume', {
+    const response = await authRequest('/api/subscription/resume', {
       method: 'POST',
-      token
     });
     
     return { success: true };
@@ -502,9 +545,8 @@ async function getBillingPortalUrl() {
   }
 
   try {
-    const response = await apiRequest('/api/subscription/billing-portal', {
+    const response = await authRequest('/api/subscription/billing-portal', {
       method: 'POST',
-      token
     });
     
     return { success: true, url: response.url };

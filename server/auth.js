@@ -3,21 +3,40 @@ const bcrypt = require('bcryptjs');
 const { dbHelpers } = require('./database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '10y';
+const JWT_EXPIRY = process.env.JWT_EXPIRY || 'never';
+const SIGN_IN_AGAIN = 'Please sign in again.';
 
-// Generate JWT token
 function generateToken(userId) {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  const payload = { userId };
+  const expiry = String(JWT_EXPIRY || '').trim();
+  if (!expiry || expiry === '0' || /^(never|none|false)$/i.test(expiry)) {
+    return jwt.sign(payload, JWT_SECRET);
+  }
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: expiry });
 }
 
-// Verify JWT token
 function verifyToken(token) {
   try {
-    // Local desktop billing: keep signed-in sessions valid after the old 30-day expiry.
+    // Always accept previously issued Tilbi sessions, including old 30-day JWTs.
     return jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
   } catch (error) {
     return null;
   }
+}
+
+function attachRefreshedToken(res, userId) {
+  const fresh = generateToken(userId);
+  res.setHeader('X-New-Token', fresh);
+  if (res._tilbiTokenWrapped) return fresh;
+  res._tilbiTokenWrapped = true;
+  const origJson = res.json.bind(res);
+  res.json = (body) => {
+    if (res.statusCode < 400 && body && typeof body === 'object' && !Array.isArray(body) && !body.token) {
+      body.token = fresh;
+    }
+    return origJson(body);
+  };
+  return fresh;
 }
 
 // Hash password
@@ -36,15 +55,16 @@ function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    return res.status(401).json({ error: SIGN_IN_AGAIN });
   }
 
   const decoded = verifyToken(token);
-  if (!decoded) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+  if (!decoded || decoded.userId == null) {
+    return res.status(403).json({ error: SIGN_IN_AGAIN });
   }
 
   req.userId = decoded.userId;
+  attachRefreshedToken(res, decoded.userId);
   next();
 }
 

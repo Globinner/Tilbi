@@ -3062,23 +3062,57 @@ function billingServerScriptPath() {
   }) || null;
 }
 
-function pingBillingServer() {
+function getBillingHealth() {
   return new Promise((resolve) => {
     const req = http.get('http://127.0.0.1:3001/health', (res) => {
-      res.resume();
-      resolve(res.statusCode >= 200 && res.statusCode < 500);
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        let health = null;
+        try { health = JSON.parse(data); } catch (_) {}
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 500,
+          persistentSessions: !!(health && health.persistentSessions),
+        });
+      });
     });
-    req.on('error', () => resolve(false));
+    req.on('error', () => resolve({ ok: false, persistentSessions: false }));
     req.setTimeout(800, () => {
       req.destroy();
-      resolve(false);
+      resolve({ ok: false, persistentSessions: false });
     });
   });
 }
 
+function pingBillingServer() {
+  return getBillingHealth().then((health) => health.ok);
+}
+
+function stopOutdatedBillingServer() {
+  return new Promise((resolve) => {
+    const ps = spawn('powershell.exe', [
+      '-NoProfile',
+      '-Command',
+      "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -match 'server[\\\\/]server\\.js' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+    ], { windowsHide: true, stdio: 'ignore' });
+    const done = () => setTimeout(resolve, 700);
+    ps.on('close', done);
+    ps.on('error', done);
+  });
+}
+
 async function ensureBillingServer() {
-  if (await pingBillingServer()) return true;
+  const health = await getBillingHealth();
+  if (health.ok && health.persistentSessions) return true;
+
   const script = billingServerScriptPath();
+  if (health.ok && !script) {
+    console.warn('Billing server is running without persistent sessions; cannot replace it.');
+    return true;
+  }
+  if (health.ok) {
+    await stopOutdatedBillingServer();
+  }
   if (!script) {
     console.warn('Billing server is not running and server.js was not found.');
     return false;
@@ -3098,7 +3132,9 @@ async function ensureBillingServer() {
   }
   for (let i = 0; i < 20; i++) {
     await new Promise((resolve) => setTimeout(resolve, 250));
-    if (await pingBillingServer()) return true;
+    const next = await getBillingHealth();
+    if (next.ok && next.persistentSessions) return true;
+    if (next.ok && i > 8) return true;
   }
   return false;
 }
