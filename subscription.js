@@ -357,7 +357,12 @@ function redeemCouponLocally(rawCode) {
 
 async function evaluateAccess() {
   if (getAuthToken()) {
-    await refreshSession();
+    const ok = await refreshSession();
+    if (!ok) {
+      store.delete('authToken');
+      store.delete('userEmail');
+      store.delete('userId');
+    }
   }
   const trial = getTrialState();
   const account = getAccount();
@@ -557,48 +562,7 @@ async function getSubscriptionStatus() {
 
 // Create subscription checkout — provider: 'stripe' | 'paypal'
 async function redeemCoupon(code) {
-  const token = getAuthToken();
-  if (!token) {
-    return redeemCouponLocally(code);
-  }
-
-  try {
-    await refreshSession();
-    const response = await authRequest('/api/coupon/redeem', {
-      method: 'POST',
-      body: { code },
-    });
-
-    if (response.subscription) {
-      store.set('subscriptionStatus', {
-        valid: response.subscription.status === 'active',
-        planType: response.subscription.planType,
-        expiresAt: response.subscription.currentPeriodEnd,
-        cancelAtPeriodEnd: response.subscription.cancelAtPeriodEnd,
-        lastValidatedAt: new Date().toISOString(),
-        lastValidatedOnline: true,
-      });
-      store.set('lastValidationTime', Date.now());
-    }
-
-    return {
-      success: true,
-      message: response.message,
-      coupon: response.coupon,
-      subscription: response.subscription,
-    };
-  } catch (error) {
-    const localResult = redeemCouponLocally(code);
-    if (localResult.success) return localResult;
-    const message = error.message || 'Could not redeem coupon';
-    if (/billing server is not running|timed out|econnrefused/i.test(message)) {
-      return { success: false, error: localResult.error || message };
-    }
-    if (isSessionErrorMessage(message)) {
-      return { success: false, error: localResult.error || 'Please sign in again, then redeem the coupon.' };
-    }
-    return { success: false, error: localResult.error && localResult.error !== 'Coupon not found' ? localResult.error : message };
-  }
+  return redeemCouponLocally(code);
 }
 
 async function createSubscription(planType, provider = 'stripe') {
