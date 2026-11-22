@@ -3781,6 +3781,12 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     .billing-get-latest-btn { background: #5b21b6; }
     .billing-message.is-error { color: #fca5a5 !important; }
     .billing-message.is-ok { color: #86efac !important; }
+    .billing-section.is-active-plan .billing-coupon-row,
+    .billing-section.is-active-plan .billing-update-row,
+    .billing-section.is-active-plan .billing-plan-grid,
+    .billing-section.is-active-plan .billing-auth-signed-out {
+      display: none !important;
+    }
     .billing-manage-row {
       display: none;
       gap: 8px;
@@ -8261,10 +8267,10 @@ searchInput.disabled = true;
       return (
         '<div class="billing-section">' +
           '<h3>Plan &amp; Billing</h3>' +
-          '<p class="billing-status-line">No account needed for a coupon. Paste the code below and tap Redeem.</p>' +
+          '<p class="billing-status-line">$5 / month or $29 / year. Sign in to subscribe, redeem a coupon, or see the plan you own.</p>' +
           '<p class="billing-message" style="display: none; font-size: 12px; margin-top: 4px;"></p>' +
           '<div class="billing-coupon-row">' +
-            '<p class="billing-coupon-label">Have a coupon? You do not need to sign in.</p>' +
+            '<p class="billing-coupon-label">Have a coupon?</p>' +
             '<div class="billing-coupon-actions">' +
               '<input class="billing-coupon-code" type="text" placeholder="TILBI-3M-XXXXXX" maxlength="32" spellcheck="false">' +
               '<button type="button" class="billing-redeem-btn">Redeem</button>' +
@@ -8277,7 +8283,6 @@ searchInput.disabled = true;
               '<button type="button" class="billing-get-latest-btn">Get latest installer</button>' +
             '</div>' +
           '</div>' +
-          '<p class="billing-status-line" style="margin-top: 8px;">Log in only to pay. If you forgot the password, skip it and redeem the coupon.</p>' +
           '<div class="billing-auth-signed-out billing-auth-row">' +
             '<input class="billing-email" type="email" placeholder="Email" autocomplete="username">' +
             '<input class="billing-password" type="password" placeholder="Password (min 8 for new accounts)" autocomplete="current-password">' +
@@ -8370,18 +8375,17 @@ searchInput.disabled = true;
       return planType || 'None';
     }
 
-    function setPayButtonsEnabled(enabled) {
-      const root = getActiveBillingRoot();
-      if (!root) return;
-      root.querySelectorAll('.billing-pay-stripe, .billing-pay-paypal').forEach((btn) => {
-        btn.disabled = !enabled;
-        btn.style.opacity = enabled ? '1' : '0.55';
-      });
+    function hasActiveAccess(sub) {
+      if (!sub) return false;
+      if (sub.status && sub.status !== 'active' && sub.status !== 'trialing') return false;
+      if (sub.currentPeriodEnd) {
+        const ends = new Date(sub.currentPeriodEnd);
+        if (!isNaN(ends.getTime()) && ends.getTime() <= Date.now()) return false;
+      }
+      return true;
     }
 
-    async function refreshBillingUI() {
-      const root = getActiveBillingRoot();
-      if (!root) return;
+    function applyBillingRoot(root, account, sub, statusError) {
       const statusLine = root.querySelector('.billing-status-line');
       const signedOut = root.querySelector('.billing-auth-signed-out');
       const signedIn = root.querySelector('.billing-auth-signed-in');
@@ -8396,37 +8400,17 @@ searchInput.disabled = true;
       yearlyCard && yearlyCard.classList.remove('is-current');
       if (manageRow) manageRow.style.display = 'none';
       if (resumeBtn) resumeBtn.style.display = 'none';
+      root.classList.remove('is-active-plan');
 
-      let account = { authenticated: false, email: null };
-      try {
-        account = await ipcRenderer.invoke('subscription-get-account');
-      } catch (err) {
-        setBillingMessage('Could not read account status.', 'error');
+      const authenticated = !!(account && account.authenticated);
+      if (signedOut) signedOut.style.display = authenticated ? 'none' : 'block';
+      if (signedIn) signedIn.style.display = authenticated ? 'block' : 'none';
+      if (userEmail && authenticated) {
+        userEmail.textContent = 'Signed in as ' + (account.email || 'your account');
       }
 
-      if (!account || !account.authenticated) {
-        if (signedOut) signedOut.style.display = 'block';
-        if (signedIn) signedIn.style.display = 'none';
-        statusLine.textContent = '$5 / month or $29 / year. Sign in to subscribe, redeem a coupon, or see the plan you own.';
-        setPayButtonsEnabled(true);
-        return;
-      }
-
-      if (signedOut) signedOut.style.display = 'none';
-      if (signedIn) signedIn.style.display = 'block';
-      if (userEmail) userEmail.textContent = 'Signed in as ' + (account.email || 'your account');
-
-      try {
-        const result = await ipcRenderer.invoke('subscription-get-status');
-        const sub = result && result.subscription;
-        if (!sub || (sub.status !== 'active' && sub.status !== 'trialing' && sub.status !== 'past_due')) {
-          statusLine.textContent = 'No active plan. Choose Monthly ($5), Yearly ($29), or redeem a coupon.';
-          setPayButtonsEnabled(true);
-          if (result && result.error) setBillingMessage(result.error, 'error');
-          else setBillingMessage('');
-          return;
-        }
-
+      if (hasActiveAccess(sub)) {
+        root.classList.add('is-active-plan');
         const providerLabel = sub.provider === 'paypal'
           ? 'PayPal'
           : (sub.provider === 'coupon' ? 'coupon' : 'Card (Stripe)');
@@ -8439,24 +8423,48 @@ searchInput.disabled = true;
               : '. Renews ' + ends.toLocaleDateString();
           }
         }
-        if (sub.status === 'past_due') line += ' — payment past due';
         statusLine.textContent = line;
-        setBillingMessage('');
-
         if (sub.planType === 'yearly' && yearlyCard) yearlyCard.classList.add('is-current');
         if (sub.planType === 'monthly' && monthlyCard) monthlyCard.classList.add('is-current');
         const isCoupon = sub.provider === 'coupon' || String(sub.planType || '').indexOf('coupon_') === 0;
-        setPayButtonsEnabled(true);
-        if (!isCoupon) {
-          setPayButtonsEnabled(false);
+        if (!isCoupon && authenticated) {
           if (manageRow) manageRow.style.display = 'flex';
           if (resumeBtn && sub.cancelAtPeriodEnd) resumeBtn.style.display = 'inline-flex';
         }
-      } catch (err) {
-        statusLine.textContent = 'Signed in, but subscription status could not be loaded.';
-        setBillingMessage((err && err.message) || 'Status check failed.', 'error');
-        setPayButtonsEnabled(true);
+        return;
       }
+
+      if (!authenticated) {
+        statusLine.textContent = '$5 / month or $29 / year. Sign in to subscribe, redeem a coupon, or see the plan you own.';
+      } else {
+        statusLine.textContent = 'No active plan. Choose Monthly ($5), Yearly ($29), or redeem a coupon.';
+      }
+      if (statusError) setBillingMessage(statusError, 'error');
+    }
+
+    async function refreshBillingUI() {
+      const roots = Array.from(document.querySelectorAll('.billing-section'));
+      if (!roots.length) return;
+
+      let account = { authenticated: false, email: null };
+      try {
+        account = await ipcRenderer.invoke('subscription-get-account');
+      } catch (err) {
+        setBillingMessage('Could not read account status.', 'error');
+      }
+
+      let sub = null;
+      let statusError = '';
+      try {
+        const result = await ipcRenderer.invoke('subscription-get-status');
+        sub = result && result.subscription;
+        if (result && result.error && !hasActiveAccess(sub)) statusError = result.error;
+      } catch (err) {
+        statusError = (err && err.message) || 'Status check failed.';
+      }
+
+      roots.forEach((root) => applyBillingRoot(root, account, sub, statusError));
+      if (!hasActiveAccess(sub) && !statusError) setBillingMessage('');
     }
 
     async function billingLoginOrRegister(mode) {
