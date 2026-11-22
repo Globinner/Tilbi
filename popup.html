@@ -3452,7 +3452,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       justify-content: center;
       align-items: center;
       padding: 5px;
-      z-index: 1000;
+      z-index: 300000;
     }
 
     /* Preferences Dialog: Always Classic Blue colors, regardless of theme */
@@ -3755,10 +3755,30 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
       flex: 1;
       margin-bottom: 0;
     }
-    .billing-coupon-actions .billing-redeem-btn {
+    .billing-coupon-actions .billing-redeem-btn,
+    .billing-coupon-actions .billing-check-updates-btn,
+    .billing-coupon-actions .billing-get-latest-btn {
       white-space: nowrap;
       height: 36px;
     }
+    .billing-update-row {
+      margin: 0 0 14px 0;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.25);
+    }
+    .billing-check-updates-btn,
+    .billing-get-latest-btn {
+      background: #334155;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .billing-get-latest-btn { background: #5b21b6; }
     .billing-message.is-error { color: #fca5a5 !important; }
     .billing-message.is-ok { color: #86efac !important; }
     .billing-manage-row {
@@ -3815,7 +3835,6 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
     body.license-locked #headerClock,
     body.license-locked #headerVideo,
     body.license-locked #headerCamera,
-    body.license-locked #headerSettings,
     body.license-locked #headerSizeToggle {
       pointer-events: none !important;
     }
@@ -8251,6 +8270,13 @@ searchInput.disabled = true;
               '<button type="button" class="billing-redeem-btn">Redeem</button>' +
             '</div>' +
           '</div>' +
+          '<div class="billing-update-row">' +
+            '<p class="billing-coupon-label">No coupon box, or an old Tilbi? Update here. You do not need Preferences.</p>' +
+            '<div class="billing-coupon-actions">' +
+              '<button type="button" class="billing-check-updates-btn">Check for Updates</button>' +
+              '<button type="button" class="billing-get-latest-btn">Get latest installer</button>' +
+            '</div>' +
+          '</div>' +
           '<div class="billing-auth-signed-out billing-auth-row">' +
             '<input class="billing-email" type="email" placeholder="Email" autocomplete="username">' +
             '<input class="billing-password" type="password" placeholder="Password (min 8 for new accounts)" autocomplete="current-password">' +
@@ -8598,6 +8624,20 @@ searchInput.disabled = true;
       if (e.target.closest('.billing-redeem-btn')) {
         return redeemCouponCode();
       }
+      if (e.target.closest('.billing-check-updates-btn')) {
+        setBillingMessage('Checking for updates…');
+        if (typeof tilbiCheckForUpdates === 'function') tilbiCheckForUpdates(e);
+        else ipcRenderer.send('check-for-updates');
+        return;
+      }
+      if (e.target.closest('.billing-get-latest-btn')) {
+        setBillingMessage('Opening the latest installer download…', 'ok');
+        ipcRenderer.send(
+          'open-external-link',
+          'https://github.com/Globinner/Tilbi/releases/latest/download/Tilbi-Setup.exe'
+        );
+        return;
+      }
     });
 
     async function redeemCouponCode() {
@@ -8882,6 +8922,10 @@ searchInput.disabled = true;
       headerSettings.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (document.body.classList.contains('license-locked')) {
+          showPreferences();
+          return;
+        }
         if (typeof showSettingsModal === 'function') showSettingsModal();
         else showPreferences();
       };
