@@ -4,6 +4,9 @@
  */
 const https = require('https');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const { app } = require('electron');
 const Store = require('electron-store');
 const os = require('os');
@@ -21,7 +24,7 @@ function getDeviceId() {
   if (!deviceId) {
     // Generate device ID based on machine info
     const machineId = os.hostname() + os.platform() + os.arch();
-    deviceId = require('crypto').createHash('sha256').update(machineId).digest('hex').substring(0, 32);
+    deviceId = crypto.createHash('sha256').update(machineId).digest('hex').substring(0, 32);
     store.set('deviceId', deviceId);
   }
   return deviceId;
@@ -231,12 +234,144 @@ function getTrialState() {
   };
 }
 
+const LOCAL_PLAN = {
+  1: 'coupon_1m',
+  3: 'coupon_3m',
+  6: 'coupon_6m',
+  12: 'coupon_1y',
+};
+
+function normalizeCouponCode(code) {
+  return String(code || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '');
+}
+
+function hashCouponCode(code) {
+  return crypto.createHash('sha256').update(normalizeCouponCode(code)).digest('hex');
+}
+
+function addMonths(date, months) {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) d.setDate(0);
+  return d;
+}
+
+function catalogPaths() {
+  const names = ['coupons-catalog.json'];
+  const roots = [
+    __dirname,
+    process.cwd(),
+    app && app.isPackaged && process.resourcesPath ? process.resourcesPath : null,
+    app && app.isPackaged && process.resourcesPath
+      ? path.join(process.resourcesPath, 'app.asar.unpacked')
+      : null,
+  ].filter(Boolean);
+  return roots.map((root) => path.join(root, names[0]));
+}
+
+function loadCouponCatalog() {
+  for (const file of catalogPaths()) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (data && Array.isArray(data.codes)) return data.codes;
+    } catch (_) {}
+  }
+  return [];
+}
+
+function getLocalCouponState() {
+  const local = store.get('localCoupon');
+  if (!local || !local.expiresAt) return null;
+  if (new Date(local.expiresAt).getTime() <= Date.now()) return null;
+  return local;
+}
+
+function localSubscriptionResponse() {
+  const local = getLocalCouponState();
+  if (!local) return null;
+  return {
+    id: 'local-coupon',
+    provider: 'coupon',
+    planType: local.planType,
+    status: 'active',
+    currentPeriodStart: local.startedAt,
+    currentPeriodEnd: local.expiresAt,
+    cancelAtPeriodEnd: true,
+  };
+}
+
+function rememberLocalCoupon(months) {
+  const now = new Date();
+  const existing = getLocalCouponState();
+  const startFrom = existing ? new Date(existing.expiresAt) : now;
+  const startedAt = existing ? existing.startedAt : now.toISOString();
+  const expiresAt = addMonths(startFrom > now ? startFrom : now, months).toISOString();
+  const planType = LOCAL_PLAN[months] || 'coupon_1m';
+  const local = { planType, startedAt, expiresAt, durationMonths: months };
+  store.set('localCoupon', local);
+  store.set('subscriptionStatus', {
+    valid: true,
+    planType,
+    expiresAt,
+    cancelAtPeriodEnd: true,
+    lastValidatedAt: now.toISOString(),
+    lastValidatedOnline: true,
+  });
+  store.set('lastValidationTime', Date.now());
+  return local;
+}
+
+function redeemCouponLocally(rawCode) {
+  const code = normalizeCouponCode(rawCode);
+  if (!/^[A-Z0-9-]{8,32}$/.test(code)) {
+    return { success: false, error: 'Invalid coupon code' };
+  }
+  const hash = hashCouponCode(code);
+  const redeemed = store.get('redeemedCouponHashes') || [];
+  if (redeemed.includes(hash)) {
+    return { success: false, error: 'You already redeemed this coupon' };
+  }
+  const match = loadCouponCatalog().find((row) => row && row.h === hash);
+  if (!match) {
+    return { success: false, error: 'Coupon not found' };
+  }
+  const months = Number(match.m);
+  if (![1, 3, 6, 12].includes(months)) {
+    return { success: false, error: 'Coupon not found' };
+  }
+  store.set('redeemedCouponHashes', redeemed.concat(hash));
+  const local = rememberLocalCoupon(months);
+  const label = months === 12 ? '1 year' : months === 1 ? '1 month' : `${months} months`;
+  return {
+    success: true,
+    message: `Coupon redeemed. You now have ${label} of Tilbi.`,
+    coupon: { durationMonths: months, planType: local.planType, label },
+    subscription: localSubscriptionResponse(),
+  };
+}
+
 async function evaluateAccess() {
   if (getAuthToken()) {
     await refreshSession();
   }
   const trial = getTrialState();
   const account = getAccount();
+  const local = getLocalCouponState();
+  if (local) {
+    return {
+      allowed: true,
+      source: 'subscription',
+      reason: null,
+      trial,
+      account,
+      planType: local.planType,
+    };
+  }
 
   if (account.authenticated) {
     const result = await validateLicense();
@@ -393,9 +528,10 @@ async function validateLicense() {
 
 // Get subscription status
 async function getSubscriptionStatus() {
+  const localSub = localSubscriptionResponse();
   const token = getAuthToken();
   if (!token) {
-    return { subscription: null };
+    return { subscription: localSub };
   }
 
   try {
@@ -412,10 +548,10 @@ async function getSubscriptionStatus() {
       });
     }
     
-    return response;
+    return response.subscription ? response : { subscription: localSub };
   } catch (error) {
     console.error('Get subscription error:', error);
-    return { subscription: null, error: error.message };
+    return { subscription: localSub, error: error.message };
   }
 }
 
@@ -423,7 +559,7 @@ async function getSubscriptionStatus() {
 async function redeemCoupon(code) {
   const token = getAuthToken();
   if (!token) {
-    return { success: false, error: 'Sign in first, then redeem your coupon.' };
+    return redeemCouponLocally(code);
   }
 
   try {
@@ -452,11 +588,16 @@ async function redeemCoupon(code) {
       subscription: response.subscription,
     };
   } catch (error) {
+    const localResult = redeemCouponLocally(code);
+    if (localResult.success) return localResult;
     const message = error.message || 'Could not redeem coupon';
-    if (isSessionErrorMessage(message)) {
-      return { success: false, error: 'Please sign in again, then redeem the coupon.' };
+    if (/billing server is not running|timed out|econnrefused/i.test(message)) {
+      return { success: false, error: localResult.error || message };
     }
-    return { success: false, error: message };
+    if (isSessionErrorMessage(message)) {
+      return { success: false, error: localResult.error || 'Please sign in again, then redeem the coupon.' };
+    }
+    return { success: false, error: localResult.error && localResult.error !== 'Coupon not found' ? localResult.error : message };
   }
 }
 

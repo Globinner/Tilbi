@@ -8652,14 +8652,6 @@ searchInput.disabled = true;
         setBillingMessage('Enter a coupon code.', 'error');
         return;
       }
-      let account = { authenticated: false };
-      try {
-        account = await ipcRenderer.invoke('subscription-get-account');
-      } catch (_) {}
-      if (!account || !account.authenticated) {
-        setBillingMessage('Sign in first, then redeem your coupon.', 'error');
-        return;
-      }
       billingBusy = true;
       setBillingMessage('Redeeming coupon...');
       try {
