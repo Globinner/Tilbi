@@ -18,6 +18,7 @@ const Store = require('electron-store');
 const os = require('os');
 const { google } = require('googleapis');
 const subscription = require('./subscription');
+const { LICENSE_KEYS, migrateFromClipboardStore } = require('./license-store');
 
 // Get user's Screenshots directory or create one
 const userScreenshotsPath = path.join(os.homedir(), 'Pictures', 'Screenshots');
@@ -89,6 +90,11 @@ function persistMemoryStore() {
   const tmp = storePath + '.tmp';
   let json;
   try {
+    LICENSE_KEYS.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(memoryStore, key)) {
+        delete memoryStore[key];
+      }
+    });
     json = JSON.stringify(memoryStore);
   } catch (err) {
     persistInFlight = false;
@@ -184,7 +190,15 @@ function pathToFileUrl(filePath) {
   return encodeURI('file:///' + normalized.replace(/^\/+/, ''));
 }
 
+migrateFromClipboardStore();
+LICENSE_KEYS.forEach((key) => {
+  if (Object.prototype.hasOwnProperty.call(memoryStore, key)) {
+    delete memoryStore[key];
+  }
+});
 if (sanitizeMemoryStore()) {
+  schedulePersist();
+} else {
   schedulePersist();
 }
 
@@ -562,32 +576,40 @@ function configureAutoUpdater() {
 
 let downloadedUpdateFile = null;
 
+function versionAtLeast(current, target) {
+  const a = String(current || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  const b = String(target || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const x = a[i] || 0;
+    const y = b[i] || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return true;
+}
+
 function runDownloadedInstallerAndQuit() {
   const candidates = [
     downloadedUpdateFile,
     autoUpdater && autoUpdater.downloadedUpdateHelper
       ? path.join(autoUpdater.downloadedUpdateHelper.cacheDir, 'Tilbi-Setup.exe')
-      : null
+      : null,
+    path.join(app.getPath('temp'), 'tilbi-updater', 'Tilbi-Setup.exe')
   ].filter(Boolean);
 
   for (const installerPath of candidates) {
     if (!fs.existsSync(installerPath)) continue;
-    const exePath = process.execPath;
-    const q = (p) => `"${String(p).replace(/"/g, '')}"`;
     spawn(
-      process.env.ComSpec || 'cmd.exe',
-      [
-        '/c',
-        `start /wait "" ${q(installerPath)} /VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTART & start "" ${q(exePath)}`
-      ],
+      installerPath,
+      ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/CLOSEAPPLICATIONS', '/FORCECLOSEAPPLICATIONS', '/NORESTART'],
       {
         detached: true,
         stdio: 'ignore',
-        windowsHide: true,
-        shell: false
+        windowsHide: false
       }
     ).unref();
-    setTimeout(() => app.quit(), 400);
+    setTimeout(() => app.exit(0), 800);
     return true;
   }
   return false;
@@ -4185,6 +4207,10 @@ if (autoUpdater) {
 
   autoUpdater.on('update-available', (info) => {
     console.log('Update available:', info);
+    if (info && info.version && versionAtLeast(app.getVersion(), info.version)) {
+      sendUpdateStatus('not-available', UPDATE_UP_TO_DATE_MSG, updateStatusTarget);
+      return;
+    }
     const version = info && info.version ? ` v${info.version}` : '';
     sendUpdateStatus('available', `Update available${version}. Click "Update Now" to download.`, updateStatusTarget);
   });
@@ -4214,7 +4240,8 @@ if (autoUpdater) {
     console.log('Update downloaded:', info);
     downloadedUpdateFile = (info && (info.downloadedFile || info.path)) || downloadedUpdateFile;
     const version = info && info.version ? ` v${info.version}` : '';
-    sendUpdateStatus('downloaded', `Update${version} downloaded. Click Restart & Install.`, updateStatusTarget);
+    sendUpdateStatus('downloaded', `Installing update${version}… Tilbi will restart.`, updateStatusTarget);
+    runDownloadedInstallerAndQuit();
   });
 }
 
@@ -4284,9 +4311,9 @@ ipcMain.on('install-update', () => {
   }
 });
 
-ipcMain.on('download-installer', (event) => {
-  updateStatusTarget = event.sender;
-  sendUpdateStatus('checking', 'Downloading latest Tilbi...', event.sender);
+function startInstallerDownload(event, installWhenReady) {
+  updateStatusTarget = event && event.sender;
+  sendUpdateStatus('checking', 'Downloading latest Tilbi...', updateStatusTarget);
 
   downloadLatestInstaller((progressObj) => {
     const contents = updateStatusTarget
@@ -4297,13 +4324,26 @@ ipcMain.on('download-installer', (event) => {
   })
     .then((installerPath) => {
       downloadedUpdateFile = installerPath;
-      sendUpdateStatus('downloaded', 'Update ready. Click Restart & Install.', updateStatusTarget);
+      sendUpdateStatus('downloaded', 'Installing update… Tilbi will restart.', updateStatusTarget);
+      if (installWhenReady) {
+        if (!runDownloadedInstallerAndQuit()) {
+          sendUpdateStatus('error', 'Could not start the installer. Run Tilbi-Setup.exe from your Downloads folder.', updateStatusTarget);
+        }
+      }
     })
     .catch((err) => {
       console.error('download-installer failed:', err);
       sendUpdateStatus('error', 'Download failed. Check your internet and try again.', updateStatusTarget);
       updateStatusTarget = null;
     });
+}
+
+ipcMain.on('download-installer', (event) => {
+  startInstallerDownload(event, true);
+});
+
+ipcMain.on('download-and-install', (event) => {
+  startInstallerDownload(event, true);
 });
 
 // App size handlers

@@ -8,10 +8,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { app } = require('electron');
-const Store = require('electron-store');
 const os = require('os');
+const { licenseStore: store, migrateFromClipboardStore } = require('./license-store');
 
-const store = new Store({ name: 'clipboard-history' });
+migrateFromClipboardStore();
 
 // Configuration
 const API_BASE_URL = process.env.API_BASE_URL || 'http://127.0.0.1:3001';
@@ -153,7 +153,6 @@ function logout() {
   store.delete('authToken');
   store.delete('userEmail');
   store.delete('userId');
-  store.delete('subscriptionStatus');
 }
 
 function isAuthenticated() {
@@ -356,16 +355,7 @@ function redeemCouponLocally(rawCode) {
 }
 
 async function evaluateAccess() {
-  if (getAuthToken()) {
-    const ok = await refreshSession();
-    if (!ok) {
-      store.delete('authToken');
-      store.delete('userEmail');
-      store.delete('userId');
-    }
-  }
   const trial = getTrialState();
-  const account = getAccount();
   const local = getLocalCouponState();
   if (local) {
     return {
@@ -373,10 +363,27 @@ async function evaluateAccess() {
       source: 'subscription',
       reason: null,
       trial,
-      account,
+      account: getAccount(),
       planType: local.planType,
     };
   }
+
+  const cached = store.get('subscriptionStatus');
+  if (cached && cached.valid && cached.expiresAt && new Date(cached.expiresAt).getTime() > Date.now()) {
+    return {
+      allowed: true,
+      source: 'subscription',
+      reason: null,
+      trial,
+      account: getAccount(),
+      planType: cached.planType || null,
+    };
+  }
+
+  if (getAuthToken()) {
+    await refreshSession();
+  }
+  const account = getAccount();
 
   if (account.authenticated) {
     const result = await validateLicense();
@@ -562,7 +569,56 @@ async function getSubscriptionStatus() {
 
 // Create subscription checkout — provider: 'stripe' | 'paypal'
 async function redeemCoupon(code) {
-  return redeemCouponLocally(code);
+  const token = getAuthToken();
+  if (!token) {
+    return redeemCouponLocally(code);
+  }
+
+  try {
+    await refreshSession();
+    const response = await authRequest('/api/coupon/redeem', {
+      method: 'POST',
+      body: { code },
+    });
+
+    const months = Number((response.coupon && response.coupon.durationMonths) || 0);
+    if ([1, 3, 6, 12].includes(months)) {
+      rememberLocalCoupon(months);
+      const hash = hashCouponCode(code);
+      const redeemed = store.get('redeemedCouponHashes') || [];
+      if (!redeemed.includes(hash)) {
+        store.set('redeemedCouponHashes', redeemed.concat(hash));
+      }
+    } else if (response.subscription) {
+      store.set('subscriptionStatus', {
+        valid: response.subscription.status === 'active',
+        planType: response.subscription.planType,
+        expiresAt: response.subscription.currentPeriodEnd,
+        cancelAtPeriodEnd: response.subscription.cancelAtPeriodEnd,
+        lastValidatedAt: new Date().toISOString(),
+        lastValidatedOnline: true,
+      });
+      store.set('lastValidationTime', Date.now());
+    }
+
+    return {
+      success: true,
+      message: response.message,
+      coupon: response.coupon,
+      subscription: response.subscription,
+    };
+  } catch (error) {
+    const localResult = redeemCouponLocally(code);
+    if (localResult.success) return localResult;
+    const message = error.message || 'Could not redeem coupon';
+    if (/billing server is not running|timed out|econnrefused/i.test(message)) {
+      return { success: false, error: localResult.error || message };
+    }
+    if (isSessionErrorMessage(message)) {
+      return { success: false, error: localResult.error || 'Please sign in again, then redeem the coupon.' };
+    }
+    return { success: false, error: localResult.error && localResult.error !== 'Coupon not found' ? localResult.error : message };
+  }
 }
 
 async function createSubscription(planType, provider = 'stripe') {

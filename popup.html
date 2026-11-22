@@ -5360,7 +5360,7 @@ body[data-theme="midnight"] .planner-day-popover .empty-state .material-icons {
             </button>
           </div>
           <p style="font-size: 12px; color: rgba(226, 232, 240, 0.8); margin: 0 0 8px 0;">
-            Check for Updates downloads and installs inside Tilbi. If that fails, use Download Update, then Restart &amp; Install.
+            Check for Updates looks for a new version. Download Update installs it and restarts Tilbi automatically.
           </p>
           <div id="update-status" style="padding: 8px; border-radius: 4px; font-size: 14px; display: none; margin-top: 10px; min-height: 20px;">
             <span id="update-status-text"></span>
@@ -8633,18 +8633,9 @@ searchInput.disabled = true;
       if (e.target.closest('.billing-redeem-btn')) {
         return redeemCouponCode();
       }
-      if (e.target.closest('.billing-check-updates-btn')) {
-        setBillingMessage('Checking for updates…');
-        if (typeof tilbiCheckForUpdates === 'function') tilbiCheckForUpdates(e);
-        else ipcRenderer.send('check-for-updates');
-        return;
-      }
-      if (e.target.closest('.billing-get-latest-btn')) {
-        setBillingMessage('Opening the latest installer download…', 'ok');
-        ipcRenderer.send(
-          'open-external-link',
-          'https://github.com/Globinner/Tilbi/releases/latest/download/Tilbi-Setup.exe'
-        );
+      if (e.target.closest('.billing-check-updates-btn') || e.target.closest('.billing-get-latest-btn')) {
+        setBillingMessage('Downloading the latest Tilbi. It will install and restart…', 'ok');
+        ipcRenderer.send('download-and-install');
         return;
       }
     });
@@ -8889,13 +8880,16 @@ searchInput.disabled = true;
         checkUpdatesBtn.addEventListener('click', (e) => tilbiCheckForUpdates(e));
       }
       if (updateNowBtn) {
-        updateNowBtn.addEventListener('click', () => ipcRenderer.send('download-update'));
+        updateNowBtn.addEventListener('click', () => {
+          showUpdateStatus('checking', 'Downloading latest Tilbi...');
+          ipcRenderer.send('download-and-install');
+        });
       }
       const downloadInstallerBtn = document.getElementById('download-installer-btn');
       if (downloadInstallerBtn) {
         downloadInstallerBtn.addEventListener('click', () => {
           showUpdateStatus('checking', 'Downloading latest Tilbi...');
-          ipcRenderer.send('download-installer');
+          ipcRenderer.send('download-and-install');
         });
       }
     })();

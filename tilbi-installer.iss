@@ -3,7 +3,7 @@
 ; REQUIRED: Run 'npm run build' first to create dist\win-unpacked\
 
 #define MyAppName "Tilbi"
-#define MyAppVersion "1.1.5"
+#define MyAppVersion "1.1.6"
 #define MyAppPublisher "Globinner"
 #define MyAppURL "https://www.globinner.com"
 #define MyAppExeName "Tilbi.exe"
@@ -22,6 +22,9 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 AllowNoIcons=yes
 PrivilegesRequired=admin
+CloseApplications=force
+CloseApplicationsFilter=Tilbi.exe
+RestartApplications=no
 OutputDir=dist
 OutputBaseFilename=Tilbi-Setup
 SetupIconFile=icons\icon.ico
